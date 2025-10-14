@@ -1,0 +1,100 @@
+# Pre-commit hooks configuration
+# See https://pre-commit.com for more information
+
+# To install: pip install pre-commit && pre-commit install
+# To run manually: pre-commit run --all-files
+
+repos:
+  # Code formatting
+  - repo: https://github.com/psf/black
+    rev: 24.1.1
+    hooks:
+      - id: black
+        language_version: python3
+        files: ^backend/
+        args: ['--line-length=100']
+
+  # Import sorting
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        files: ^backend/
+        args: ['--profile=black', '--line-length=100']
+
+  # Linting
+  - repo: https://github.com/PyCQA/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        files: ^backend/
+        args: [
+          '--max-line-length=100',
+          '--extend-ignore=E203,W503,E501',
+          '--exclude=alembic/versions/*,__pycache__,*.pyc'
+        ]
+
+  # Type checking (optional, can be disabled if too strict)
+  # - repo: https://github.com/pre-commit/mirrors-mypy
+  #   rev: v1.8.0
+  #   hooks:
+  #     - id: mypy
+  #       files: ^backend/src/
+  #       args: ['--ignore-missing-imports', '--no-strict-optional']
+  #       additional_dependencies: ['types-all']
+
+  # Security checks
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.6
+    hooks:
+      - id: bandit
+        args: ['-r', 'backend/src', '-ll', '-i']
+        files: ^backend/src/
+
+  # YAML validation
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-yaml
+        args: ['--safe']
+      - id: end-of-file-fixer
+        files: ^backend/
+      - id: trailing-whitespace
+        files: ^backend/
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+      - id: check-ast
+        files: ^backend/.*\.py$
+      - id: debug-statements
+        files: ^backend/.*\.py$
+
+  # SQL/Alembic migration checks
+  - repo: local
+    hooks:
+      - id: check-migration-conflicts
+        name: Check for migration conflicts
+        entry: bash -c 'if [ $(ls backend/alembic/versions/*.py 2>/dev/null | wc -l) -gt 1 ]; then if grep -l "down_revision.*None" backend/alembic/versions/*.py | wc -l | grep -qv "^1$"; then echo "Multiple migration heads detected!"; exit 1; fi; fi'
+        language: system
+        pass_filenames: false
+
+# Configuration for specific tools
+default_language_version:
+  python: python3
+
+# Global exclude patterns
+exclude: |
+  (?x)(
+    /__pycache__/|
+    /\.git/|
+    /\.pytest_cache/|
+    /\.mypy_cache/|
+    /\.tox/|
+    /venv/|
+    /env/|
+    /dist/|
+    /build/|
+    .*\.egg-info/|
+    .*\.pyc|
+    alembic/versions/.*\.py
+  )

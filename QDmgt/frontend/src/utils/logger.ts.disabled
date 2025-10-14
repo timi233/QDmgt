@@ -1,0 +1,261 @@
+// Logging utilities for the Channel Management System
+
+// Define log levels
+export enum LogLevel {
+  DEBUG = 'DEBUG',
+  INFO = 'INFO',
+  WARN = 'WARN',
+  ERROR = 'ERROR'
+}
+
+// Define log entry structure
+interface LogEntry {
+  timestamp: string;
+  level: LogLevel;
+  message: string;
+  context?: Record<string, any>;
+  stack?: string;
+}
+
+// Logger class
+class Logger {
+  private level: LogLevel;
+  private enableConsole: boolean;
+  private logBuffer: LogEntry[];
+  private maxBufferSize: number;
+
+  constructor(level: LogLevel = LogLevel.INFO, enableConsole = true, maxBufferSize = 1000) {
+    this.level = level;
+    this.enableConsole = enableConsole;
+    this.logBuffer = [];
+    this.maxBufferSize = maxBufferSize;
+  }
+
+  // Get numeric value for log level comparison
+  private getLevelValue(level: LogLevel): number {
+    switch (level) {
+      case LogLevel.DEBUG: return 0;
+      case LogLevel.INFO: return 1;
+      case LogLevel.WARN: return 2;
+      case LogLevel.ERROR: return 3;
+      default: return 1;
+    }
+  }
+
+  // Check if logging is enabled for the specified level
+  private isLevelEnabled(level: LogLevel): boolean {
+    return this.getLevelValue(level) >= this.getLevelValue(this.level);
+  }
+
+  // Format log entry
+  private formatLogEntry(entry: LogEntry): string {
+    return `[${entry.timestamp}] ${entry.level}: ${entry.message}` +
+      (entry.context ? ` | Context: ${JSON.stringify(entry.context)}` : '') +
+      (entry.stack ? `\nStack: ${entry.stack}` : '');
+  }
+
+  // Add log entry to buffer
+  private addLogEntry(level: LogLevel, message: string, context?: Record<string, any>): void {
+    if (!this.isLevelEnabled(level)) {
+      return;
+    }
+
+    const logEntry: LogEntry = {
+      timestamp: new Date().toISOString(),
+      level,
+      message,
+      context
+    };
+
+    // Capture stack trace for error messages
+    if (level === LogLevel.ERROR) {
+      logEntry.stack = new Error().stack;
+    }
+
+    this.logBuffer.push(logEntry);
+
+    // Limit buffer size
+    if (this.logBuffer.length > this.maxBufferSize) {
+      this.logBuffer = this.logBuffer.slice(-this.maxBufferSize);
+    }
+
+    // Output to console if enabled
+    if (this.enableConsole) {
+      this.outputToConsole(logEntry);
+    }
+  }
+
+  // Output log entry to console
+  private outputToConsole(entry: LogEntry): void {
+    const formattedMessage = this.formatLogEntry(entry);
+    
+    switch (entry.level) {
+      case LogLevel.ERROR:
+        console.error(formattedMessage);
+        break;
+      case LogLevel.WARN:
+        console.warn(formattedMessage);
+        break;
+      case LogLevel.INFO:
+        console.info(formattedMessage);
+        break;
+      case LogLevel.DEBUG:
+        console.debug(formattedMessage);
+        break;
+      default:
+        console.log(formattedMessage);
+    }
+  }
+
+  // Public logging methods
+  debug(message: string, context?: Record<string, any>): void {
+    this.addLogEntry(LogLevel.DEBUG, message, context);
+  }
+
+  info(message: string, context?: Record<string, any>): void {
+    this.addLogEntry(LogLevel.INFO, message, context);
+  }
+
+  warn(message: string, context?: Record<string, any>): void {
+    this.addLogEntry(LogLevel.WARN, message, context);
+  }
+
+  error(message: string, context?: Record<string, any>): void {
+    this.addLogEntry(LogLevel.ERROR, message, context);
+  }
+
+  // Log method with explicit level
+  log(level: LogLevel, message: string, context?: Record<string, any>): void {
+    this.addLogEntry(level, message, context);
+  }
+
+  // Get logs within a specified time range
+  getLogs(fromTime?: Date, toTime?: Date): LogEntry[] {
+    let filteredLogs = this.logBuffer;
+
+    if (fromTime) {
+      filteredLogs = filteredLogs.filter(entry => 
+        new Date(entry.timestamp) >= fromTime
+      );
+    }
+
+    if (toTime) {
+      filteredLogs = filteredLogs.filter(entry => 
+        new Date(entry.timestamp) <= toTime
+      );
+    }
+
+    return filteredLogs;
+  }
+
+  // Get logs by level
+  getLogsWithLevel(levels: LogLevel[]): LogEntry[] {
+    return this.logBuffer.filter(entry => levels.includes(entry.level));
+  }
+
+  // Get all logs
+  getAllLogs(): LogEntry[] {
+    return [...this.logBuffer];
+  }
+
+  // Clear the log buffer
+  clearLogs(): void {
+    this.logBuffer = [];
+  }
+
+  // Set log level
+  setLevel(level: LogLevel): void {
+    this.level = level;
+  }
+
+  // Enable/disable console output
+  setConsoleOutput(enabled: boolean): void {
+    this.enableConsole = enabled;
+  }
+
+  // Export logs as string
+  exportLogs(): string {
+    return this.logBuffer.map(entry => this.formatLogEntry(entry)).join('\n');
+  }
+
+  // Export logs as JSON
+  exportLogsAsJson(): string {
+    return JSON.stringify(this.logBuffer, null, 2);
+  }
+}
+
+// Create default logger instance
+export const logger = new Logger();
+
+// Function to create a namespaced logger
+export function createLogger(namespace: string, level?: LogLevel): Logger {
+  const originalLogger = new Logger(level);
+  
+  // Override the addLogEntry method to include namespace
+  const namespacedLogger = {
+    ...originalLogger,
+    addLogEntry: function(level: LogLevel, message: string, context?: Record<string, any>) {
+      const namespacedMessage = `[${namespace}] ${message}`;
+      // We can't directly override the private method, so we'll call the original methods
+      this.log(level, namespacedMessage, context);
+    },
+    debug: function(message: string, context?: Record<string, any>) {
+      const namespacedMessage = `[${namespace}] ${message}`;
+      originalLogger.debug(namespacedMessage, context);
+    },
+    info: function(message: string, context?: Record<string, any>) {
+      const namespacedMessage = `[${namespace}] ${message}`;
+      originalLogger.info(namespacedMessage, context);
+    },
+    warn: function(message: string, context?: Record<string, any>) {
+      const namespacedMessage = `[${namespace}] ${message}`;
+      originalLogger.warn(namespacedMessage, context);
+    },
+    error: function(message: string, context?: Record<string, any>) {
+      const namespacedMessage = `[${namespace}] ${message}`;
+      originalLogger.error(namespacedMessage, context);
+    },
+    log: function(level: LogLevel, message: string, context?: Record<string, any>) {
+      const namespacedMessage = `[${namespace}] ${message}`;
+      originalLogger.log(level, namespacedMessage, context);
+    }
+  } as Logger;
+
+  return namespacedLogger;
+}
+
+// Predefined loggers for different modules
+export const channelLogger = createLogger('ChannelModule', LogLevel.INFO);
+export const targetLogger = createLogger('TargetModule', LogLevel.INFO);
+export const assignmentLogger = createLogger('AssignmentModule', LogLevel.INFO);
+export const executionLogger = createLogger('ExecutionModule', LogLevel.INFO);
+
+// Log middleware function for API requests
+export function logApiRequest(method: string, url: string, startTime: number, response?: Response, error?: Error) {
+  const duration = Date.now() - startTime;
+  
+  if (error) {
+    logger.error(`API request failed: ${method} ${url}`, {
+      method,
+      url,
+      duration: `${duration}ms`,
+      error: error.message
+    });
+  } else if (response) {
+    const level = response.status >= 400 ? LogLevel.WARN : LogLevel.INFO;
+    logger.log(
+      level,
+      `API request completed: ${method} ${url}`,
+      {
+        method,
+        url,
+        statusCode: response.status,
+        statusText: response.statusText,
+        duration: `${duration}ms`
+      }
+    );
+  }
+}
+
+// Log application startup
+logger.info('Channel Management System initialized');

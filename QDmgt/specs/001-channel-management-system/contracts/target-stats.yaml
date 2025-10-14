@@ -1,0 +1,67 @@
+# Channel Management API Contract
+
+**Endpoint**: `GET /api/channels/{channel_id}/target-stats`  
+**Method**: GET  
+**Version**: 1.0  
+**Feature**: Channel Management System
+
+## Purpose
+Get target achievement statistics for a specific channel to support visualization needs.
+
+## Request
+
+### Path Parameters
+- `channel_id`: UUID of the channel to get statistics for
+
+### Query Parameters
+- `year` (optional): Year to filter statistics for (e.g., 2025)
+- `quarter` (optional): Quarter to filter statistics for (1-4)
+- `month` (optional): Month to filter statistics for (1-12)
+
+### Headers
+- `Authorization: Bearer <token>` - Required authentication token
+
+## Response
+
+### Success Response (200 OK)
+```json
+{
+  "channel_id": "uuid-string",
+  "channel_name": "Channel Name",
+  "time_period": {
+    "year": 2025,
+    "quarter": 4,
+    "month": 10
+  },
+  "target_achievement": {
+    "performance": {
+      "target": 100.50,
+      "achieved": 75.25,
+      "percentage": 74.87
+    },
+    "opportunity": {
+      "target": 80.25,
+      "achieved": 60.10,
+      "percentage": 74.89
+    },
+    "project_count": {
+      "target": 15,
+      "achieved": 11,
+      "percentage": 73.33
+    }
+  },
+  "period_completion": "74.33%"  // Average of all metrics
+}
+```
+
+### Error Responses
+- `401 Unauthorized`: Invalid or missing authentication token
+- `403 Forbidden`: User lacks permission to access this channel
+- `404 Not Found`: Channel with specified ID does not exist
+- `422 Unprocessable Entity`: Invalid query parameters
+
+## Business Rules
+- Only authenticated users with appropriate permissions can access channel statistics
+- If no time filters are provided, returns the most recent target period
+- The percentage is calculated as (achieved/target)*100
+- Used to support the visualization requirements (pie charts, progress bars, trend charts)

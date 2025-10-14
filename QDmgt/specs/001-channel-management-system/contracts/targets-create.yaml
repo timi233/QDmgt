@@ -1,0 +1,78 @@
+# Channel Management API Contract
+
+**Endpoint**: `POST /api/channels/{channel_id}/targets`  
+**Method**: POST  
+**Version**: 1.0  
+**Feature**: Channel Management System
+
+## Purpose
+Create a new target plan for a specific channel with time dimensions and metrics.
+
+## Request
+
+### Path Parameters
+- `channel_id`: UUID of the channel to create target for
+
+### Headers
+- `Authorization: Bearer <token>` - Required authentication token
+- `Content-Type: application/json`
+
+### Body
+```json
+{
+  "year": 2025,
+  "quarter": 4,
+  "month": 10,
+  "performance_target": 100.50,
+  "opportunity_target": 80.25,
+  "project_count_target": 15,
+  "development_goal": "Expand market share in region"
+}
+```
+
+### Body Validation
+- `year`: Required integer, must be a valid year (e.g., 2024, 2025, etc.)
+- `quarter`: Required integer, must be between 1 and 4
+- `month`: Optional integer, if provided must be between 1 and 12
+- `performance_target`: Optional decimal, represents target in W (tens of thousands)
+- `opportunity_target`: Optional decimal, represents target in W (tens of thousands)
+- `project_count_target`: Optional integer, represents target project count
+- `development_goal`: Optional string, describes development goals
+
+## Response
+
+### Success Response (201 Created)
+```json
+{
+  "id": "uuid-string",
+  "channel_id": "uuid-string",
+  "year": 2025,
+  "quarter": 4,
+  "month": 10,
+  "performance_target": 100.50,
+  "opportunity_target": 80.25,
+  "project_count_target": 15,
+  "development_goal": "Expand market share in region",
+  "achieved_performance": 0.00,
+  "achieved_opportunity": 0.00,
+  "achieved_project_count": 0,
+  "created_at": "2025-10-11T10:00:00Z",
+  "updated_at": "2025-10-11T10:00:00Z",
+  "created_by": "uuid-string"
+}
+```
+
+### Error Responses
+- `400 Bad Request`: Invalid request body format
+- `401 Unauthorized`: Invalid or missing authentication token
+- `403 Forbidden`: User lacks permission to create channel targets
+- `404 Not Found`: Channel with specified ID does not exist
+- `409 Conflict`: Target plan already exists for this channel and time period
+- `422 Unprocessable Entity`: Validation errors in request body
+
+## Business Rules
+- Only users with write or admin permissions on the channel can create targets
+- The created_by field will be automatically populated from the authenticated user
+- The created_at and updated_at fields will be automatically set to the current timestamp
+- Achieved values are initialized to 0 and will be updated as progress is tracked
+- Target plans must be unique for a given channel and time period (year, quarter, month)
