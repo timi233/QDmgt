@@ -1,0 +1,68 @@
+# Channel Management API Contract
+
+**Endpoint**: `POST /api/channels/{channel_id}/execution-plans`  
+**Method**: POST  
+**Version**: 1.0  
+**Feature**: Channel Management System
+
+## Purpose
+Create a new execution plan (monthly or weekly) for a specific channel.
+
+## Request
+
+### Path Parameters
+- `channel_id`: UUID of the channel to create execution plan for
+
+### Headers
+- `Authorization: Bearer <token>` - Required authentication token
+- `Content-Type: application/json`
+
+### Body
+```json
+{
+  "plan_type": "monthly",
+  "plan_period": "2025-10",
+  "plan_content": "Focus on expanding relationships with basic盘 channels, identify new opportunities in high-value channels",
+  "status": "planned"
+}
+```
+
+### Body Validation
+- `plan_type`: Required string, must be one of "monthly", "weekly"
+- `plan_period`: Required string, format "YYYY-MM" for monthly or "YYYY-WW" for weekly (e.g., "2025-10" or "2025-W40")
+- `plan_content`: Required string, describes the plan content
+- `status`: Optional string, must be one of "planned", "in-progress", "completed", "archived"; defaults to "planned"
+
+## Response
+
+### Success Response (201 Created)
+```json
+{
+  "id": "uuid-string",
+  "channel_id": "uuid-string",
+  "user_id": "uuid-string",
+  "plan_type": "monthly",
+  "plan_period": "2025-10",
+  "plan_content": "Focus on expanding relationships with basic盘 channels, identify new opportunities in high-value channels",
+  "execution_status": null,
+  "key_obstacles": null,
+  "next_steps": null,
+  "status": "planned",
+  "created_at": "2025-10-11T10:00:00Z",
+  "updated_at": "2025-10-11T10:00:00Z"
+}
+```
+
+### Error Responses
+- `400 Bad Request`: Invalid request body format
+- `401 Unauthorized`: Invalid or missing authentication token
+- `403 Forbidden`: User lacks permission to create execution plans
+- `404 Not Found`: Channel with specified ID does not exist
+- `422 Unprocessable Entity`: Validation errors in request body
+
+## Business Rules
+- Only users assigned to the channel with appropriate permissions can create execution plans
+- The user_id field will be automatically populated from the authenticated user
+- The created_at and updated_at fields will be automatically set to the current timestamp
+- For weekly plans, the execution_status, key_obstacles, and next_steps fields can be updated as progress is tracked
+- Plan period format must match the plan type (monthly vs weekly)

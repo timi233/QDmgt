@@ -1,0 +1,35 @@
+# Channel Management API Contract
+
+**Endpoint**: `DELETE /api/channels/{channel_id}`  
+**Method**: DELETE  
+**Version**: 1.0  
+**Feature**: Channel Management System
+
+## Purpose
+Delete (soft delete) an existing channel.
+
+## Request
+
+### Path Parameters
+- `channel_id`: UUID of the channel to delete
+
+### Headers
+- `Authorization: Bearer <token>` - Required authentication token
+
+## Response
+
+### Success Response (204 No Content)
+- Empty response body
+- Channel is marked as deleted but retained for 1 year per data retention policy
+
+### Error Responses
+- `401 Unauthorized`: Invalid or missing authentication token
+- `403 Forbidden`: User lacks permission to delete this channel
+- `404 Not Found`: Channel with specified ID does not exist
+- `409 Conflict`: Channel has active user assignments and cannot be deleted
+
+## Business Rules
+- Only users with admin permission on the channel can delete it
+- Soft delete is performed - record is marked as deleted but preserved for 1 year
+- Channel must not have active assignments to other users before deletion
+- The deleted_at field will be set to the current timestamp on soft delete

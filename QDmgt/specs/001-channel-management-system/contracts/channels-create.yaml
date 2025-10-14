@@ -1,0 +1,66 @@
+# Channel Management API Contract
+
+**Endpoint**: `POST /api/channels`  
+**Method**: POST  
+**Version**: 1.0  
+**Feature**: Channel Management System
+
+## Purpose
+Create a new channel with target planning capabilities in the system.
+
+## Request
+
+### Headers
+- `Authorization: Bearer <token>` - Required authentication token
+- `Content-Type: application/json`
+
+### Body
+```json
+{
+  "name": "Channel Name",
+  "description": "Channel description",
+  "status": "active",
+  "business_type": "basic",
+  "contact_email": "contact@example.com",
+  "contact_phone": "+1234567890"
+}
+```
+
+### Body Validation
+- `name`: Required string, maximum 255 characters, must be unique
+- `description`: Optional string
+- `status`: Required string, must be one of "active", "inactive", "suspended"
+- `business_type`: Required string, must be one of "basic", "high-value", "pending-signup"
+- `contact_email`: Optional string, must be valid email format if provided
+- `contact_phone`: Optional string, maximum 50 characters
+
+## Response
+
+### Success Response (201 Created)
+```json
+{
+  "id": "uuid-string",
+  "name": "Channel Name",
+  "description": "Channel description",
+  "status": "active",
+  "business_type": "basic",
+  "contact_email": "contact@example.com",
+  "contact_phone": "+1234567890",
+  "created_at": "2025-10-11T10:00:00Z",
+  "updated_at": "2025-10-11T10:00:00Z",
+  "created_by": "uuid-string"
+}
+```
+
+### Error Responses
+- `400 Bad Request`: Invalid request body format
+- `401 Unauthorized`: Invalid or missing authentication token
+- `403 Forbidden`: User lacks permission to create channels
+- `409 Conflict`: Channel name already exists
+- `422 Unprocessable Entity`: Validation errors in request body
+
+## Business Rules
+- Only authenticated users with appropriate permissions can create channels
+- Channel names must be unique within the system
+- The created_by field will be automatically populated from the authenticated user
+- The created_at and updated_at fields will be automatically set to the current timestamp
