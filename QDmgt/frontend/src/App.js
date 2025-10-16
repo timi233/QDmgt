@@ -11,8 +11,10 @@ import AppNavbar from './components/Navbar';
 import DashboardPage from './pages/DashboardPage';
 import AssignmentsPage from './pages/AssignmentsPage';
 import TargetsPage from './pages/TargetsPage';
+import ChannelTargetsPage from './pages/ChannelTargetsPage';
 import ExecutionPlansPage from './pages/ExecutionPlansPage';
 import UsersPage from './pages/UsersPage';
+import UnifiedTargetsPage from './pages/UnifiedTargetsPage';
 
 function App() {
   const withLayout = (page) => (
@@ -65,6 +67,20 @@ function App() {
             element={
               <PrivateRoute>
                 {withLayout(<TargetsPage />)}
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/channel-targets"
+            element={
+              <ManagerRoute element={withLayout(<ChannelTargetsPage />)} />
+            }
+          />
+          <Route
+            path="/unified-targets"
+            element={
+              <PrivateRoute>
+                {withLayout(<UnifiedTargetsPage />)}
               </PrivateRoute>
             }
           />

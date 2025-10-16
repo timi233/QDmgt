@@ -50,6 +50,8 @@ export interface CreateExecutionPlanRequest {
   plan_type: PlanType;
   plan_period: string;
   plan_content: string;
+  key_obstacles?: string;
+  next_steps?: string;
 }
 
 /**
@@ -94,7 +96,9 @@ export const executionService = {
     userId: string,
     planType: PlanType,
     planPeriod: string,
-    planContent: string
+    planContent: string,
+    keyObstacles?: string,
+    nextSteps?: string
   ): Promise<ExecutionPlan> {
     try {
       const payload: CreateExecutionPlanRequest = {
@@ -104,6 +108,14 @@ export const executionService = {
         plan_period: planPeriod,
         plan_content: planContent,
       };
+
+      if (keyObstacles && keyObstacles.trim()) {
+        payload.key_obstacles = keyObstacles;
+      }
+
+      if (nextSteps && nextSteps.trim()) {
+        payload.next_steps = nextSteps;
+      }
       const response = await apiClient.post<ExecutionPlan>('/execution-plans/', payload);
       console.log('[Execution] Created successfully', {
         id: response.data.id,

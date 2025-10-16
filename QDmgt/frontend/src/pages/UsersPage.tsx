@@ -96,6 +96,7 @@ const UsersPage: React.FC = () => {
       setEditFormValues({
         role: selectedUser.role,
         is_active: selectedUser.is_active,
+        password: '', // 密码留空,不修改则不填
       });
     } else {
       setEditFormValues(defaultEditFormValues);

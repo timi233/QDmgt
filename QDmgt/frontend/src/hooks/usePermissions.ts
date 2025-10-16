@@ -1,5 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+
+export const usePermissions = () => {
+  const { isAdmin, isManagerOrAdmin } = useAuth();
+
+  const managerOrAdmin = isManagerOrAdmin();
+  const admin = isAdmin();
+
+  return {
+    canView: true,
+    canCreate: managerOrAdmin,
+    canEdit: managerOrAdmin,
+    canUpdateAchievement: managerOrAdmin,
+    canDelete: admin,
+    isAdmin: admin,
+    isManagerOrAdmin: managerOrAdmin,
+  };
+};
 
 // Mock permission levels
 type PermissionLevel = 'read' | 'write' | 'admin';
@@ -315,43 +333,5 @@ export const useChannelFeatureAccess = (channelId: string) => {
     canAccessAssignmentManagement,
     getAccessibleFeatures,
     userPermissionLevel: getUserPermissionLevel()
-  };
-};
-
-/**
- * Custom hook for permission-based navigation
- */
-export const usePermissionNavigation = () => {
-  const navigateWithPermissionCheck = (
-    path: string,
-    channelId: string,
-    fallbackPath?: string
-  ) => {
-    const { hasPermission } = useChannelPermission(channelId);
-    
-    // Determine required permission for the path
-    let requiredPermission: PermissionLevel = 'read';
-    
-    if (path.includes('/edit') || path.includes('/create')) {
-      requiredPermission = 'write';
-    } else if (path.includes('/delete') || path.includes('/assign')) {
-      requiredPermission = 'admin';
-    }
-    
-    // Check if user has required permission
-    if (hasPermission(requiredPermission)) {
-      // In a real implementation, you would use navigate(path)
-      console.log(`Navigating to: ${path}`);
-      return true;
-    } else {
-      // Navigate to fallback or show unauthorized message
-      const fallback = fallbackPath || '/unauthorized';
-      console.log(`Unauthorized access. Redirecting to: ${fallback}`);
-      return false;
-    }
-  };
-
-  return {
-    navigateWithPermissionCheck
   };
 };

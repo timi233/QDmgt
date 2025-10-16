@@ -41,7 +41,7 @@ type AssignmentEditFormErrors = Partial<Record<'permission_level', string>>;
 const createInitialCreateFormValues = (): AssignmentCreateFormValues => ({
   user_id: '',
   channel_id: '',
-  permission_level: '',
+  permission_level: 'read',
   target_responsibility: false,
 });
 
@@ -320,7 +320,7 @@ const AssignmentsPage: React.FC = () => {
       case 'admin':
         return '管理员';
       case 'write':
-        return '写入';
+        return '编辑';
       case 'read':
       default:
         return '只读';
@@ -472,7 +472,7 @@ const AssignmentsPage: React.FC = () => {
                     </Form.Group>
 
                     <Form.Group className="mb-3" controlId="createAssignmentPermission">
-                      <Form.Label>权限级别</Form.Label>
+                      <Form.Label>权限级别(默认:只读)</Form.Label>
                       <Form.Select
                         value={createFormData.permission_level}
                         onChange={event =>
@@ -484,10 +484,8 @@ const AssignmentsPage: React.FC = () => {
                         isInvalid={!!createFormErrors.permission_level}
                         required
                       >
-                        <option value="">请选择权限级别</option>
                         <option value="read">只读</option>
-                        <option value="write">写入</option>
-                        <option value="admin">管理员</option>
+                        <option value="write">编辑</option>
                       </Form.Select>
                       <Form.Control.Feedback type="invalid">
                         {createFormErrors.permission_level}
@@ -577,8 +575,7 @@ const AssignmentsPage: React.FC = () => {
                         >
                           <option value="">请选择权限级别</option>
                           <option value="read">只读</option>
-                          <option value="write">写入</option>
-                          <option value="admin">管理员</option>
+                          <option value="write">编辑</option>
                         </Form.Select>
                         <Form.Control.Feedback type="invalid">
                           {editFormErrors.permission_level}

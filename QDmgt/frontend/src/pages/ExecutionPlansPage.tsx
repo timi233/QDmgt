@@ -29,12 +29,12 @@ type ExecutionPlanCreateFormValues = {
   plan_type: '' | PlanType;
   plan_period: string;
   plan_content: string;
+  key_obstacles: string;
+  next_steps: string;
 };
 
 type ExecutionPlanEditFormValues = ExecutionPlanCreateFormValues & {
   execution_status: '' | ExecutionStatus;
-  key_obstacles: string;
-  next_steps: string;
 };
 
 type ExecutionPlanStatusFormValues = {
@@ -57,6 +57,8 @@ const createInitialCreateFormValues = (): ExecutionPlanCreateFormValues => ({
   plan_type: '',
   plan_period: '',
   plan_content: '',
+  key_obstacles: '',
+  next_steps: '',
 });
 
 const createInitialEditFormValues = (): ExecutionPlanEditFormValues => ({
@@ -416,7 +418,9 @@ const ExecutionPlansPage: React.FC = () => {
         createFormData.user_id,
         createFormData.plan_type as PlanType,
         createFormData.plan_period,
-        createFormData.plan_content
+        createFormData.plan_content,
+        createFormData.key_obstacles || undefined,
+        createFormData.next_steps || undefined
       );
 
       setShowCreateModal(false);
@@ -578,6 +582,8 @@ const ExecutionPlansPage: React.FC = () => {
                     <th>计划类型</th>
                     <th>周期</th>
                     <th>内容</th>
+                    <th>关键障碍</th>
+                    <th>下一步行动</th>
                     <th>状态</th>
                     <th>操作</th>
                   </tr>
@@ -585,7 +591,7 @@ const ExecutionPlansPage: React.FC = () => {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-4">
+                      <td colSpan={9} className="text-center py-4">
                         <Spinner animation="border" role="status" size="sm" className="me-2" />
                         正在加载执行计划...
                       </td>
@@ -597,8 +603,14 @@ const ExecutionPlansPage: React.FC = () => {
                         <td>{getUserDisplayName(plan.user_id)}</td>
                         <td>{planTypeLabel(plan.plan_type)}</td>
                         <td>{plan.plan_period}</td>
-                        <td className="text-truncate" style={{ maxWidth: '280px' }} title={plan.plan_content}>
+                        <td className="text-truncate" style={{ maxWidth: '200px' }} title={plan.plan_content}>
                           {plan.plan_content}
+                        </td>
+                        <td className="text-truncate" style={{ maxWidth: '180px' }} title={plan.key_obstacles || ''}>
+                          {plan.key_obstacles || '-'}
+                        </td>
+                        <td className="text-truncate" style={{ maxWidth: '180px' }} title={plan.next_steps || ''}>
+                          {plan.next_steps || '-'}
                         </td>
                         <td>
                           <Badge bg={executionStatusVariant(plan.execution_status)}>
@@ -643,7 +655,7 @@ const ExecutionPlansPage: React.FC = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={7} className="text-center text-muted py-4">
+                      <td colSpan={9} className="text-center text-muted py-4">
                         暂无执行计划
                       </td>
                     </tr>
@@ -755,6 +767,30 @@ const ExecutionPlansPage: React.FC = () => {
                       <Form.Control.Feedback type="invalid">
                         {createFormErrors.plan_content}
                       </Form.Control.Feedback>
+                    </Form.Group>
+
+                    <Form.Group className="mb-3" controlId="createPlanObstacles">
+                      <Form.Label>关键障碍</Form.Label>
+                      <Form.Control
+                        as="textarea"
+                        rows={3}
+                        value={createFormData.key_obstacles}
+                        onChange={event =>
+                          setCreateFormData(prev => ({ ...prev, key_obstacles: event.target.value }))
+                        }
+                      />
+                    </Form.Group>
+
+                    <Form.Group className="mb-0" controlId="createPlanNextSteps">
+                      <Form.Label>下一步行动</Form.Label>
+                      <Form.Control
+                        as="textarea"
+                        rows={3}
+                        value={createFormData.next_steps}
+                        onChange={event =>
+                          setCreateFormData(prev => ({ ...prev, next_steps: event.target.value }))
+                        }
+                      />
                     </Form.Group>
                   </Form>
                 </Modal.Body>
@@ -909,7 +945,7 @@ const ExecutionPlansPage: React.FC = () => {
                       </Form.Group>
 
                       <Form.Group className="mb-3" controlId="editPlanObstacles">
-                        <Form.Label>关键障碍（可选）</Form.Label>
+                        <Form.Label>关键障碍</Form.Label>
                         <Form.Control
                           as="textarea"
                           rows={3}
@@ -921,7 +957,7 @@ const ExecutionPlansPage: React.FC = () => {
                       </Form.Group>
 
                       <Form.Group className="mb-0" controlId="editPlanNextSteps">
-                        <Form.Label>下一步行动（可选）</Form.Label>
+                        <Form.Label>下一步行动</Form.Label>
                         <Form.Control
                           as="textarea"
                           rows={3}
@@ -989,7 +1025,7 @@ const ExecutionPlansPage: React.FC = () => {
                       </Form.Group>
 
                       <Form.Group className="mb-3" controlId="statusObstacles">
-                        <Form.Label>关键障碍（可选）</Form.Label>
+                        <Form.Label>关键障碍</Form.Label>
                         <Form.Control
                           as="textarea"
                           rows={3}
@@ -1001,7 +1037,7 @@ const ExecutionPlansPage: React.FC = () => {
                       </Form.Group>
 
                       <Form.Group className="mb-0" controlId="statusNextSteps">
-                        <Form.Label>下一步行动（可选）</Form.Label>
+                        <Form.Label>下一步行动</Form.Label>
                         <Form.Control
                           as="textarea"
                           rows={3}

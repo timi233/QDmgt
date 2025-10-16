@@ -50,13 +50,23 @@ const AppNavbar: React.FC = () => {
               渠道管理
             </Nav.Link>
             {isManagerOrAdmin() && (
+              <Nav.Link as={NavLink} to="/unified-targets" className="px-3">
+                统一目标管理
+              </Nav.Link>
+            )}
+            {isManagerOrAdmin() && (
               <Nav.Link as={NavLink} to="/assignments" className="px-3">
                 分配管理
               </Nav.Link>
             )}
             <Nav.Link as={NavLink} to="/targets" className="px-3">
-              目标规划
+              目标规划(旧版)
             </Nav.Link>
+            {isManagerOrAdmin() && (
+              <Nav.Link as={NavLink} to="/channel-targets" className="px-3">
+                渠道目标(旧版)
+              </Nav.Link>
+            )}
             <Nav.Link as={NavLink} to="/execution-plans" className="px-3">
               执行计划
             </Nav.Link>
