@@ -384,10 +384,11 @@ class ChannelService:
             })
             raise ConflictError("Cannot delete channel with active assignments. Please remove all assignments first.")
 
-        # Check for active targets
-        from ..models.channel_target import TargetPlan
-        active_targets = db.query(TargetPlan).filter(
-            TargetPlan.channel_id == channel_id_str
+        # Check for active targets (using UnifiedTarget)
+        from ..models.channel_target import UnifiedTarget, TargetType
+        active_targets = db.query(UnifiedTarget).filter(
+            UnifiedTarget.target_type == TargetType.channel,
+            UnifiedTarget.target_id == channel.id
         ).first()
 
         if active_targets:

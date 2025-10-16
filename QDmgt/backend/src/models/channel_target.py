@@ -73,6 +73,11 @@ class UnifiedTarget(Base):
         )
 
 
+# DEPRECATED: TargetPlan model is deprecated, use UnifiedTarget instead
+# This model is kept only for historical compatibility.
+# The 'channel_targets' table no longer exists in the database.
+# All target management has been migrated to 'unified_targets' table.
+# Planned removal date: 2025-04-16
 class TargetPlan(Base):
     __tablename__ = "channel_targets"
     __table_args__ = (

@@ -19,7 +19,6 @@ from pathlib import Path
 from ..database import get_db, create_tables
 from ..models.user import User
 from ..models.channel import Channel
-from ..models.channel_target import TargetPlan
 from ..models.assignment import ChannelAssignment
 from ..models.execution_plan import ExecutionPlan
 # Service imports - commented out until needed
