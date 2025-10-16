@@ -19,7 +19,9 @@ from ..database import Base, get_db
 from ..main import create_app
 from ..models.user import User, UserRole
 from ..models.channel import Channel, ChannelStatus, BusinessType
-from ..auth.auth_service import AuthService, AuthManager
+from ..auth.auth_service import AuthService, AuthManager, get_current_user
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import HTTPException, status, Depends, Request
 
 
 # =============================================================================
@@ -145,12 +147,72 @@ def db(db_session: Session) -> Session:
 # FastAPI Test Client Fixtures
 # =============================================================================
 
-@pytest.fixture(scope="function")
-def client(db_session: Session) -> TestClient:
+def make_current_user_override(auth_manager: AuthManager):
     """
-    Create a FastAPI test client with database override
+    Create a synchronous version of get_current_user for TestClient compatibility.
+
+    TestClient is based on requests library and doesn't support async dependencies.
+    This override provides a synchronous authentication dependency for tests.
+
+    It parses the Authorization header manually to avoid async dependency issues.
+    """
+    def get_current_user_sync(request: Request) -> Dict[str, Any]:
+        """Synchronous dependency to get current authenticated user from request"""
+        # Manually parse Authorization header
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Missing authorization header",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Expect "Bearer <token>" format
+        parts = auth_header.split()
+        if len(parts) != 2 or parts[0].lower() != "bearer":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authorization header format",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        token = parts[1]
+
+        try:
+            # Use auth_manager's synchronous verify_token method
+            payload = auth_manager.verify_token(token)
+
+            if payload is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Could not validate credentials",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
+            return payload
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Authentication error: {str(e)}",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+    return get_current_user_sync
+
+
+@pytest.fixture(scope="function")
+def client(db_session: Session, auth_manager: AuthManager) -> TestClient:
+    """
+    Create a FastAPI test client with database and auth overrides
 
     Scope: function - new client for each test
+
+    Overrides:
+    - get_db: Use test database session
+    - get_current_user: Use synchronous version for TestClient compatibility
     """
     app = create_app()
 
@@ -162,6 +224,9 @@ def client(db_session: Session) -> TestClient:
             pass
 
     app.dependency_overrides[get_db] = override_get_db
+
+    # Override async get_current_user with synchronous version for TestClient
+    app.dependency_overrides[get_current_user] = make_current_user_override(auth_manager)
 
     with TestClient(app) as test_client:
         yield test_client
@@ -295,7 +360,9 @@ def user_token(test_user: User, auth_manager: AuthManager) -> str:
     """
     return auth_manager.create_access_token(data={
         "sub": str(test_user.id),  # Convert UUID to string for JSON serialization
-        "username": test_user.username
+        "username": test_user.username,
+        "email": test_user.email,
+        "role": test_user.role.value  # Convert enum to string value
     })
 
 
@@ -306,7 +373,9 @@ def admin_token(test_admin: User, auth_manager: AuthManager) -> str:
     """
     return auth_manager.create_access_token(data={
         "sub": str(test_admin.id),  # Convert UUID to string for JSON serialization
-        "username": test_admin.username
+        "username": test_admin.username,
+        "email": test_admin.email,
+        "role": test_admin.role.value  # Convert enum to string value
     })
 
 
@@ -317,7 +386,9 @@ def manager_token(test_manager: User, auth_manager: AuthManager) -> str:
     """
     return auth_manager.create_access_token(data={
         "sub": str(test_manager.id),  # Convert UUID to string for JSON serialization
-        "username": test_manager.username
+        "username": test_manager.username,
+        "email": test_manager.email,
+        "role": test_manager.role.value  # Convert enum to string value
     })
 
 

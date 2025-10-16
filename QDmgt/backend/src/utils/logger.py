@@ -27,29 +27,36 @@ class Logger:
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
     
-    def _log(self, level: LogLevel, message: str, extra: Optional[Dict[str, Any]] = None):
+    def _log(
+        self,
+        level: LogLevel,
+        message: str,
+        *args: Any,
+        extra: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
+    ) -> None:
+        """Format log message with optional args and forward to stdlib logger."""
         log_method = getattr(self.logger, level.value.lower())
+        formatted_message = message % args if args else message
         if extra:
-            # Add extra context to the log
             extra_str = " | ".join([f"{k}={v}" for k, v in extra.items()])
-            log_method(f"{message} | {extra_str}")
-        else:
-            log_method(message)
-    
-    def debug(self, message: str, extra: Optional[Dict[str, Any]] = None):
-        self._log(LogLevel.DEBUG, message, extra)
-    
-    def info(self, message: str, extra: Optional[Dict[str, Any]] = None):
-        self._log(LogLevel.INFO, message, extra)
-    
-    def warning(self, message: str, extra: Optional[Dict[str, Any]] = None):
-        self._log(LogLevel.WARNING, message, extra)
-    
-    def error(self, message: str, extra: Optional[Dict[str, Any]] = None):
-        self._log(LogLevel.ERROR, message, extra)
-    
-    def critical(self, message: str, extra: Optional[Dict[str, Any]] = None):
-        self._log(LogLevel.CRITICAL, message, extra)
+            formatted_message = f"{formatted_message} | {extra_str}"
+        log_method(formatted_message, **kwargs)
+
+    def debug(self, message: str, *args: Any, extra: Optional[Dict[str, Any]] = None, **kwargs: Any) -> None:
+        self._log(LogLevel.DEBUG, message, *args, extra=extra, **kwargs)
+
+    def info(self, message: str, *args: Any, extra: Optional[Dict[str, Any]] = None, **kwargs: Any) -> None:
+        self._log(LogLevel.INFO, message, *args, extra=extra, **kwargs)
+
+    def warning(self, message: str, *args: Any, extra: Optional[Dict[str, Any]] = None, **kwargs: Any) -> None:
+        self._log(LogLevel.WARNING, message, *args, extra=extra, **kwargs)
+
+    def error(self, message: str, *args: Any, extra: Optional[Dict[str, Any]] = None, **kwargs: Any) -> None:
+        self._log(LogLevel.ERROR, message, *args, extra=extra, **kwargs)
+
+    def critical(self, message: str, *args: Any, extra: Optional[Dict[str, Any]] = None, **kwargs: Any) -> None:
+        self._log(LogLevel.CRITICAL, message, *args, extra=extra, **kwargs)
 
 
 # Create a default logger instance

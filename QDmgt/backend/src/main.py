@@ -1,7 +1,15 @@
 from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
-from .api import auth, channels, targets, assignments, execution_plans
+from .api import (
+    assignments,
+    auth,
+    channels,
+    execution_plans,
+    person_channel_targets,
+    targets,
+    unified_targets,
+)
 from .config.settings import settings
 from .database import engine, Base
 from .utils.logger import logger
@@ -60,9 +68,11 @@ def create_app():
     api_v1_router.include_router(targets.router, prefix="", tags=["targets"])
     api_v1_router.include_router(assignments.router, prefix="", tags=["assignments"])
     api_v1_router.include_router(execution_plans.router, prefix="", tags=["execution-plans"])
+    api_v1_router.include_router(person_channel_targets.router, prefix="", tags=["person-channel-targets"])
 
     # Include versioned API router
     app.include_router(api_v1_router)
+    app.include_router(unified_targets.router, prefix="/api/v1")
 
     @app.get("/")
     def read_root():

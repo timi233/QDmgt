@@ -359,7 +359,7 @@ def update_user(
         # Update password if provided
         if update_data.password:
             auth_service = AuthService()
-            user.hashed_password = auth_service.hash_password(update_data.password)
+            user.hashed_password = auth_service.auth_manager.hash_password(update_data.password)
             logger.info("Admin updated user password", extra={"user_id": user_id})
 
         db.commit()

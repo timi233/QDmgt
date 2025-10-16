@@ -222,7 +222,11 @@ class AssignmentService:
             assignment.permission_level = permission_level
         if target_responsibility is not None:
             assignment.target_responsibility = target_responsibility
-        
+
+        # Explicitly set updated_at (SQLAlchemy onupdate should handle this, but being explicit)
+        from datetime import datetime
+        assignment.updated_at = datetime.now()
+
         try:
             db.commit()
             db.refresh(assignment)
@@ -267,43 +271,63 @@ class AssignmentService:
             raise
 
     @staticmethod
-    def has_permission(db: Session, user_id: uuid.UUID, channel_id: uuid.UUID, 
+    def has_permission(db: Session, user_id: uuid.UUID, channel_id: uuid.UUID,
                       required_permission: PermissionLevel) -> bool:
-        """Check if user has required permission for a channel"""
+        """
+        Check if user has required permission for a channel.
+
+        Permission rules:
+        - admin/manager roles: Always have full admin permission (implicit)
+        - user role: Permission based on ChannelAssignment
+        - write permission: Can edit targets and execution plans
+        - admin permission: Can manage channel (create/delete/modify channel itself)
+        """
         logger.debug("Checking user permission for channel", extra={
             "user_id": str(user_id),
             "channel_id": str(channel_id),
             "required_permission": required_permission.value
         })
-        
+
         user_id_str = str(user_id) if isinstance(user_id, uuid.UUID) else user_id
         channel_id_str = str(channel_id) if isinstance(channel_id, uuid.UUID) else channel_id
+
+        # Check user role - admin/manager have implicit admin permission
+        user = db.query(User).filter(User.id == user_id_str).first()
+        if user and user.role in ["admin", "manager"]:
+            logger.info("User has implicit admin permission via role", extra={
+                "user_id": str(user_id),
+                "user_role": user.role,
+                "channel_id": str(channel_id)
+            })
+            return True
+
+        # For regular users, check assignment
         assignment = db.query(ChannelAssignment).filter(
             and_(
                 ChannelAssignment.user_id == user_id_str,
                 ChannelAssignment.channel_id == channel_id_str
             )
         ).first()
-        
+
         if not assignment:
             logger.info("No assignment found for user and channel", extra={
                 "user_id": str(user_id),
                 "channel_id": str(channel_id)
             })
             return False
-        
+
         # Map permission levels to numeric values for comparison
         permission_values = {
             PermissionLevel.read: 1,
             PermissionLevel.write: 2,
             PermissionLevel.admin: 3
         }
-        
+
         required_value = permission_values[required_permission]
         user_value = permission_values[assignment.permission_level]
-        
+
         has_permission = user_value >= required_value
-        
+
         logger.info("Permission check result", extra={
             "user_id": str(user_id),
             "channel_id": str(channel_id),
@@ -311,7 +335,7 @@ class AssignmentService:
             "required_permission": required_permission.value,
             "has_permission": has_permission
         })
-        
+
         return has_permission
 
     @staticmethod

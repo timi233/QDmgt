@@ -33,6 +33,7 @@ class TestCreateChannel:
             description="Test description",
             status=ChannelStatus.active,
             business_type=BusinessType.basic,
+            contact_person=None,
             contact_email="test@example.com",
             contact_phone="+1234567890",
             created_by=admin_uuid
@@ -55,6 +56,7 @@ class TestCreateChannel:
                 description="Another description",
                 status=ChannelStatus.active,
                 business_type=BusinessType.basic,
+                contact_person=None,
                 contact_email="another@example.com",
                 contact_phone="+0987654321",
                 created_by=uuid.UUID(test_admin.id) if isinstance(test_admin.id, str) else test_admin.id
@@ -71,6 +73,7 @@ class TestCreateChannel:
                 description="Test",
                 status=ChannelStatus.active,
                 business_type=BusinessType.basic,
+                contact_person=None,
                 contact_email="invalid-email",  # Invalid email
                 contact_phone="+1234567890",
                 created_by=uuid.UUID(test_admin.id) if isinstance(test_admin.id, str) else test_admin.id
@@ -86,6 +89,7 @@ class TestCreateChannel:
             description=None,
             status=ChannelStatus.active,
             business_type=BusinessType.basic,
+            contact_person=None,
             contact_email=None,
             contact_phone=None,
             created_by=uuid.UUID(test_admin.id) if isinstance(test_admin.id, str) else test_admin.id
@@ -166,6 +170,7 @@ class TestGetChannels:
                 description=f"Description {i}",
                 status=ChannelStatus.active,
                 business_type=BusinessType.basic,
+                contact_person=None,
                 contact_email=None,
                 contact_phone=None,
                 created_by=uuid.UUID(test_admin.id) if isinstance(test_admin.id, str) else test_admin.id
@@ -189,6 +194,7 @@ class TestGetChannels:
             description="Test",
             status=ChannelStatus.active,
             business_type=BusinessType.basic,
+            contact_person=None,
             contact_email=None,
             contact_phone=None,
             created_by=uuid.UUID(test_admin.id) if isinstance(test_admin.id, str) else test_admin.id
@@ -199,6 +205,7 @@ class TestGetChannels:
             description="Test",
             status=ChannelStatus.inactive,
             business_type=BusinessType.basic,
+            contact_person=None,
             contact_email=None,
             contact_phone=None,
             created_by=uuid.UUID(test_admin.id) if isinstance(test_admin.id, str) else test_admin.id
@@ -221,6 +228,7 @@ class TestGetChannels:
             description="Test",
             status=ChannelStatus.active,
             business_type=BusinessType.basic,
+            contact_person=None,
             contact_email=None,
             contact_phone=None,
             created_by=uuid.UUID(test_admin.id) if isinstance(test_admin.id, str) else test_admin.id
@@ -231,6 +239,7 @@ class TestGetChannels:
             description="Test",
             status=ChannelStatus.active,
             business_type=BusinessType.high_value,
+            contact_person=None,
             contact_email=None,
             contact_phone=None,
             created_by=uuid.UUID(test_admin.id) if isinstance(test_admin.id, str) else test_admin.id
@@ -253,6 +262,7 @@ class TestGetChannels:
             description="Fruit store",
             status=ChannelStatus.active,
             business_type=BusinessType.basic,
+            contact_person=None,
             contact_email=None,
             contact_phone=None,
             created_by=uuid.UUID(test_admin.id) if isinstance(test_admin.id, str) else test_admin.id
@@ -263,6 +273,7 @@ class TestGetChannels:
             description="Fruit market",
             status=ChannelStatus.active,
             business_type=BusinessType.basic,
+            contact_person=None,
             contact_email=None,
             contact_phone=None,
             created_by=uuid.UUID(test_admin.id) if isinstance(test_admin.id, str) else test_admin.id

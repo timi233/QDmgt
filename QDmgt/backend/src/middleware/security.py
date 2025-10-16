@@ -16,7 +16,7 @@ import time
 import uuid
 from datetime import datetime, timedelta
 import jwt
-from .security import SecurityConfig
+from ..config.security import SecurityConfig
 from ..utils.logger import logger
 
 

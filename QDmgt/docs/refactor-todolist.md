@@ -1164,7 +1164,11 @@ pytest backend/src/tests/ -v  # 所有测试通过
 | 阶段 2 | 5 | 5 | 0 | 0 | 100% ✓ |
 | 阶段 3 | 4 | 4 | 0 | 0 | 100% ✓ |
 | 阶段 4 | 6 | 0 | 0 | 6 | 0% |
-| **总计** | **27** | **21** | **0** | **6** | **77.8%** |
+| **阶段 P0** (新增) | 5 | 0 | 0 | 5 | 0% |
+| **阶段 P1-目标统一** (新增) | 6 | 0 | 0 | 6 | 0% |
+| **阶段 P1-测试补完** (新增) | 3 | 0 | 0 | 3 | 0% |
+| **阶段 P2-前端完善** (新增) | 3 | 0 | 0 | 3 | 0% |
+| **总计** | **44** | **21** | **0** | **23** | **47.7%** |
 
 ---
 
@@ -1256,8 +1260,484 @@ pytest backend/src/tests/ -v  # 所有测试通过
 
 ---
 
-**文档版本**：1.0
-**最后更新**：2025-10-13
+---
+
+## 🚀 阶段 P0：修复前端编译（新增 2025-10-16）
+
+### ✅ 任务 P0.1：修复 ChannelsPage.tsx 语法错误
+
+**优先级**：🔴 P0 - 严重
+**预计时间**：2小时
+**负责人**：前端开发
+**状态**：📋 待开始
+
+**描述**：
+修复 ChannelsPage.tsx 中的语法错误，解除编译阻塞。
+
+**问题列表**：
+- 第154行和330行：重复的 export default
+- 第204行：return 语句在函数外
+- 第171行、201行：未定义变量 channelId
+
+**文件位置**：
+- `frontend/src/pages/ChannelsPage.tsx`
+
+**验收标准**：
+```bash
+cd frontend
+npm start  # 编译成功，无语法错误
+```
+
+**依赖**：无
+
+---
+
+### ✅ 任务 P0.2：安装缺失依赖包
+
+**优先级**：🔴 P0 - 严重
+**预计时间**：30分钟
+**负责人**：前端开发
+**状态**：📋 待开始
+
+**描述**：
+安装前端缺失的依赖包。
+
+**执行命令**：
+```bash
+cd frontend
+npm install react-icons --save
+npm install --save-dev @testing-library/react @testing-library/jest-dom @types/jest msw
+```
+
+**验收标准**：
+- ✅ package.json 已更新
+- ✅ node_modules 已安装
+- ✅ 导入语句无报错
+
+**依赖**：无
+
+---
+
+### ✅ 任务 P0.3：创建类型定义文件
+
+**优先级**：🔴 P0 - 严重
+**预计时间**：1小时
+**负责人**：前端开发
+**状态**：📋 待开始
+
+**描述**：
+创建 TypeScript 类型定义文件，解决类型导入错误。
+
+**文件位置**：
+- 新建：`frontend/src/types/index.ts`
+
+**类型定义**：
+- Channel, TargetData, User, Assignment, ExecutionPlan
+
+**验收标准**：
+- ✅ 文件已创建
+- ✅ 所有类型导入无报错
+
+**依赖**：无
+
+---
+
+### ✅ 任务 P0.4：修复组件导入错误
+
+**优先级**：🔴 P0 - 严重
+**预计时间**：1.5小时
+**负责人**：前端开发
+**状态**：📋 待开始
+
+**描述**：
+统一组件导入方式，修复命名导入与默认导出不匹配问题。
+
+**影响文件**：
+- `src/features/channels/create.tsx`
+- `src/features/channels/update.tsx`
+- `src/features/channels/list.tsx`
+- `src/pages/ChannelsPage.tsx`
+
+**验收标准**：
+- ✅ 所有导入语句无报错
+- ✅ 组件可正常使用
+
+**依赖**：任务 P0.1, P0.2, P0.3
+
+---
+
+### ✅ 任务 P0.5：验证前端编译和运行
+
+**优先级**：🔴 P0 - 严重
+**预计时间**：1小时
+**负责人**：前端开发
+**状态**：📋 待开始
+
+**描述**：
+验证前端可以成功编译并运行。
+
+**测试步骤**：
+```bash
+cd frontend
+PORT=3002 npm start
+```
+
+**验收标准**：
+- ✅ 编译成功无错误
+- ✅ 可访问 http://localhost:3002
+- ✅ 主要页面可正常渲染
+- ✅ 控制台无严重错误
+
+**依赖**：任务 P0.1-P0.4
+
+**文档输出**：`docs/frontend-compilation-fix-2025-10-16.md`
+
+---
+
+## 🎯 阶段 P1-目标统一：统一目标系统（新增 2025-10-16）
+
+### ✅ 任务 P1-U.1：创建 UnifiedTarget 模型
+
+**优先级**：🟡 P1 - 高
+**预计时间**：3小时
+**负责人**：后端开发
+**状态**：📋 待开始
+
+**描述**：
+创建统一目标模型，支持 person/channel + quarter/month。
+
+**文件位置**：
+- 新建：`backend/src/models/unified_target.py`
+
+**模型定义**：
+- target_type: person/channel
+- period_type: quarter/month
+- 5个细分目标字段 + 5个达成字段
+
+**验收标准**：
+- ✅ 模型定义完成
+- ✅ 约束和索引正确
+- ✅ 关系定义正确
+
+**依赖**：阶段 4 完成
+
+**文档参考**：`docs/target-unification-design-2025-10-15.md`
+
+---
+
+### ✅ 任务 P1-U.2：创建数据库迁移
+
+**优先级**：🟡 P1 - 高
+**预计时间**：2小时
+**负责人**：数据库工程师
+**状态**：📋 待开始
+
+**描述**：
+创建 Alembic migration 创建 unified_targets 表。
+
+**执行命令**：
+```bash
+cd backend
+alembic revision --autogenerate -m "Create unified_targets table"
+alembic upgrade head
+```
+
+**验收标准**：
+- ✅ Migration 文件已创建
+- ✅ 表结构正确
+- ✅ 约束和索引已创建
+
+**依赖**：任务 P1-U.1
+
+---
+
+### ✅ 任务 P1-U.3：编写数据迁移脚本
+
+**优先级**：🟡 P1 - 高
+**预计时间**：4小时
+**负责人**：后端开发
+**状态**：📋 待开始
+
+**描述**：
+编写数据迁移脚本，从两张旧表迁移到新表。
+
+**文件位置**：
+- 新建：`backend/src/cli/migrate_targets.py`
+
+**迁移内容**：
+1. channel_targets → unified_targets
+2. person_channel_targets → unified_targets (拆解JSON)
+
+**验收标准**：
+- ✅ 脚本可执行
+- ✅ 数据100%迁移
+- ✅ 数据一致性验证通过
+
+**依赖**：任务 P1-U.2
+
+---
+
+### ✅ 任务 P1-U.4：实现 UnifiedTargetService
+
+**优先级**：🟡 P1 - 高
+**预计时间**：4小时
+**负责人**：后端开发
+**状态**：📋 待开始
+
+**描述**：
+实现统一目标服务层。
+
+**文件位置**：
+- 新建：`backend/src/services/unified_target_service.py`
+- 新建：`backend/src/tests/unit/test_unified_target_service.py`
+
+**服务方法**：
+- create_target, get_target, get_targets
+- update_target, update_achievement
+- calculate_completion
+
+**验收标准**：
+- ✅ 所有CRUD方法完成
+- ✅ 单元测试覆盖率≥80%
+- ✅ 所有测试通过
+
+**依赖**：任务 P1-U.3
+
+---
+
+### ✅ 任务 P1-U.5：实现统一目标API
+
+**优先级**：🟡 P1 - 高
+**预计时间**：3小时
+**负责人**：后端开发
+**状态**：📋 待开始
+
+**描述**：
+实现新的统一目标API + 兼容旧API。
+
+**文件位置**：
+- 新建：`backend/src/api/unified_targets.py`
+- 修改：`backend/src/api/targets.py` (添加兼容层)
+- 新建：`backend/src/tests/integration/test_api_unified_targets.py`
+- 新建：`backend/src/tests/integration/test_api_targets_compat.py`
+
+**API端点**：
+- POST /unified-targets/ (新)
+- GET /unified-targets/ (新)
+- PUT /unified-targets/{id} (新)
+- PATCH /unified-targets/{id}/achievement (新)
+- 保持 /targets/* 兼容
+
+**验收标准**：
+- ✅ 新API功能完整
+- ✅ 旧API行为不变
+- ✅ 集成测试通过
+
+**依赖**：任务 P1-U.4
+
+---
+
+### ✅ 任务 P1-U.6：实现前端统一目标页面
+
+**优先级**：🟡 P1 - 高
+**预计时间**：4小时
+**负责人**：前端开发
+**状态**：📋 待开始
+
+**描述**：
+合并 TargetsPage 和 ChannelTargetsPage 为 UnifiedTargetsPage。
+
+**文件位置**：
+- 新建：`frontend/src/services/unified-target.service.ts`
+- 新建：`frontend/src/pages/UnifiedTargetsPage.tsx`
+- 修改：`frontend/src/App.js` (更新路由)
+
+**功能**：
+- 支持 person/channel 切换
+- 支持 quarter/month 切换
+- 季度目标分解为月度目标
+
+**验收标准**：
+- ✅ 页面可正常渲染
+- ✅ CRUD操作正常
+- ✅ 目标分解逻辑正确
+
+**依赖**：任务 P1-U.5
+
+**文档输出**：`docs/target-unification-implementation-2025-10-16.md`
+
+---
+
+## 🧪 阶段 P1-测试：测试补完（新增 2025-10-16）
+
+### ✅ 任务 P1-T.1：补充API集成测试
+
+**优先级**：🟡 P1 - 高
+**预计时间**：2小时
+**负责人**：测试工程师
+**状态**：📋 待开始
+
+**描述**：
+补充缺失的API集成测试。
+
+**测试文件**：
+- `backend/src/tests/integration/test_api_execution_plans.py` (完善)
+
+**测试覆盖**：
+- Execution Plans API 完整测试
+
+**验收标准**：
+- ✅ 所有测试通过
+- ✅ API端点覆盖率≥70%
+
+**依赖**：阶段 2, 3 完成
+
+---
+
+### ✅ 任务 P1-T.2：前端组件测试
+
+**优先级**：🟡 P1 - 高
+**预计时间**：6小时
+**负责人**：前端开发
+**状态**：📋 待开始
+
+**描述**：
+为核心前端组件编写测试。
+
+**测试文件**：
+- `frontend/src/components/__tests__/` (新建目录)
+
+**测试覆盖**：
+- 核心组件单元测试
+- 主要页面集成测试
+
+**验收标准**：
+- ✅ 组件测试覆盖率≥70%
+- ✅ 所有测试通过
+
+**依赖**：任务 P0.5
+
+---
+
+### ✅ 任务 P1-T.3：覆盖率验证和报告
+
+**优先级**：🟡 P1 - 高
+**预计时间**：2小时
+**负责人**：测试工程师
+**状态**：📋 待开始
+
+**描述**：
+生成覆盖率报告并验证达标。
+
+**执行命令**：
+```bash
+# 后端
+pytest --cov=backend/src --cov-report=html --cov-fail-under=80
+
+# 前端
+npm test -- --coverage --coverageThreshold='{"global":{"lines":70}}'
+```
+
+**验收标准**：
+- ✅ 后端覆盖率≥80%
+- ✅ 前端覆盖率≥70%
+- ✅ HTML报告已生成
+
+**依赖**：任务 P1-T.1, P1-T.2
+
+**文档输出**：`docs/test-completion-2025-10-16.md`
+
+---
+
+## 🎨 阶段 P2-前端：前端功能完善（新增 2025-10-16）
+
+### ✅ 任务 P2.1：仪表盘图表增强
+
+**优先级**：🟢 P2 - 中
+**预计时间**：4小时
+**负责人**：前端开发
+**状态**：📋 待开始
+
+**描述**：
+增强仪表盘数据可视化。
+
+**文件位置**：
+- 修改：`frontend/src/pages/DashboardPage.tsx`
+
+**功能**：
+- 目标完成度计算
+- 业务类型饼图
+- 月度执行趋势图
+
+**验收标准**：
+- ✅ 图表正常显示
+- ✅ 数据准确
+- ✅ 无性能问题
+
+**依赖**：任务 P0.5
+
+**文档参考**：`docs/dashboard-charts-enhancement-2025-10-15.md`
+
+---
+
+### ✅ 任务 P2.2：执行计划页面优化
+
+**优先级**：🟢 P2 - 中
+**预计时间**：2小时
+**负责人**：前端开发
+**状态**：📋 待开始
+
+**描述**：
+优化执行计划创建和编辑体验。
+
+**文件位置**：
+- 修改：`frontend/src/pages/ExecutionPlansPage.tsx`
+
+**功能**：
+- 表单验证改进
+- 用户体验优化
+
+**验收标准**：
+- ✅ 表单验证完善
+- ✅ 用户操作流畅
+
+**依赖**：任务 P0.5
+
+**文档参考**：`docs/execution-plan-creation-enhancement-2025-10-15.md`
+
+---
+
+### ✅ 任务 P2.3：渠道目标页面集成
+
+**优先级**：🟢 P2 - 中
+**预计时间**：4小时
+**负责人**：前端开发
+**状态**：📋 待开始
+
+**描述**：
+完善渠道目标页面功能。
+
+**文件位置**：
+- 修改：`frontend/src/pages/ChannelTargetsPage.tsx`
+
+**功能**：
+- 季度目标 + 月度目标统一管理
+- 目标分解逻辑
+
+**验收标准**：
+- ✅ 功能完整
+- ✅ 用户体验良好
+
+**依赖**：任务 P1-U.6
+
+**文档参考**：`docs/channel-targets-page-2025-10-15.md`
+
+**文档输出**：`docs/frontend-enhancement-2025-10-16.md`
+
+---
+
+**文档版本**：2.0
+**最后更新**：2025-10-16
 **下次更新**：每日
 
 ---
@@ -1268,3 +1748,11 @@ pytest backend/src/tests/ -v  # 所有测试通过
 2. **记录问题**：在对应任务下添加备注
 3. **更新进度**：每日更新进度统计表
 4. **定期回顾**：每周回顾一次整体进度
+
+---
+
+## 📚 新增相关文档
+
+- [工作规划总览 2025-10-16](./work-plan-2025-10-16.md)
+- [目标统一设计](./target-unification-design-2025-10-15.md)
+- [前端编译问题记录](./issues-2025-10-14.md)

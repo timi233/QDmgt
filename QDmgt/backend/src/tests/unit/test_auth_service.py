@@ -359,32 +359,32 @@ class TestAuthService:
 
         assert exc_info.value.status_code == 401
 
-    def test_refresh_access_token_success(self):
+    def test_refresh_access_token_success(self, db_session: Session, test_user: User):
         """Test successful token refresh"""
         auth_service = AuthService()
 
-        # Create a refresh token first
-        refresh_token_data = {"sub": "test_user_id", "username": "testuser"}
+        # Create a refresh token with real user ID
+        refresh_token_data = {"sub": str(test_user.id), "username": test_user.username}
         refresh_token = auth_service.auth_manager.create_refresh_token(refresh_token_data)
 
-        result = auth_service.refresh_access_token(refresh_token)
+        result = auth_service.refresh_access_token(refresh_token, db=db_session)
 
         assert "access_token" in result
         assert "token_type" in result
         assert result["token_type"] == "bearer"
         assert isinstance(result["access_token"], str)
 
-    def test_refresh_access_token_invalid(self):
+    def test_refresh_access_token_invalid(self, db_session: Session):
         """Test token refresh with invalid token"""
         auth_service = AuthService()
 
         with pytest.raises(HTTPException) as exc_info:
-            auth_service.refresh_access_token("invalid.token.here")
+            auth_service.refresh_access_token("invalid.token.here", db=db_session)
 
         assert exc_info.value.status_code == 401
         assert "Invalid" in str(exc_info.value.detail)
 
-    def test_refresh_access_token_expired(self):
+    def test_refresh_access_token_expired(self, db_session: Session):
         """Test token refresh with expired token"""
         auth_service = AuthService()
         config = SecurityConfig()
@@ -396,7 +396,7 @@ class TestAuthService:
         expired_token = jwt.encode(data, config.JWT_SECRET_KEY, algorithm=config.JWT_ALGORITHM)
 
         with pytest.raises(HTTPException) as exc_info:
-            auth_service.refresh_access_token(expired_token)
+            auth_service.refresh_access_token(expired_token, db=db_session)
 
         assert exc_info.value.status_code == 401
 

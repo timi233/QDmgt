@@ -26,6 +26,7 @@ class ChannelAssignment(Base):
     assigned_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     assigned_by = Column(GUID, ForeignKey("users.id"), nullable=False, index=True)
     target_responsibility = Column(Boolean, nullable=False, default=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
     user = relationship("User", foreign_keys=[user_id], backref="channel_assignments")

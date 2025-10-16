@@ -26,7 +26,7 @@ class PermissionLevelEnum(str, Enum):
 class AssignmentCreateRequest(BaseModel):
     user_id: UUID
     channel_id: UUID
-    permission_level: PermissionLevelEnum
+    permission_level: PermissionLevelEnum = PermissionLevelEnum.read
     target_responsibility: bool = False
 
 class AssignmentUpdateRequest(BaseModel):
@@ -41,9 +41,17 @@ class AssignmentResponse(BaseModel):
     assigned_at: datetime
     assigned_by: UUID
     target_responsibility: bool
+    updated_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None  # Alias for assigned_at (computed in response)
 
     class Config:
         from_attributes = True
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        # Set created_at from assigned_at if not provided
+        if self.created_at is None and self.assigned_at:
+            object.__setattr__(self, 'created_at', self.assigned_at)
 
 class AssignmentListResponse(BaseModel):
     assignments: List[AssignmentResponse]
@@ -65,14 +73,26 @@ def create_assignment(
         # For demonstration, using a mock user ID
         # In real implementation, this would come from auth context
         mock_user_id = UUID("12345678-1234-5678-1234-123456789012")
-        
+
+        # Validate permission level for regular users
+        user = db.query(User).filter(User.id == str(assignment_data.user_id)).first()
+        if user and user.role == "user" and assignment_data.permission_level == "admin":
+            logger.warning("Attempted to assign admin permission to regular user", extra={
+                "user_id": str(assignment_data.user_id),
+                "user_role": user.role
+            })
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="普通用户只能被分配只读或编辑权限"
+            )
+
         logger.info("Creating new channel assignment", extra={
             "user_id": str(assignment_data.user_id),
             "channel_id": str(assignment_data.channel_id),
             "permission_level": assignment_data.permission_level,
             "assigned_by": str(mock_user_id)
         })
-        
+
         assignment = AssignmentService.create_assignment(
             db=db,
             user_id=assignment_data.user_id,
@@ -81,13 +101,13 @@ def create_assignment(
             assigned_by=mock_user_id,
             target_responsibility=assignment_data.target_responsibility
         )
-        
+
         logger.info("Channel assignment created successfully", extra={
             "assignment_id": str(assignment.id),
             "user_id": str(assignment.user_id),
             "channel_id": str(assignment.channel_id)
         })
-        
+
         return assignment
     except ValidationError as e:
         logger.warning("Validation error creating assignment", extra={
@@ -203,6 +223,29 @@ def update_assignment(
     db: Session = Depends(get_db)
 ):
     try:
+        # Get existing assignment to validate user role
+        existing_assignment = AssignmentService.get_assignment_by_id(db, assignment_id)
+        if not existing_assignment:
+            logger.warning("Assignment not found for update", extra={"assignment_id": str(assignment_id)})
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Assignment not found"
+            )
+
+        # Validate permission level for regular users
+        if assignment_data.permission_level:
+            user = db.query(User).filter(User.id == str(existing_assignment.user_id)).first()
+            if user and user.role == "user" and assignment_data.permission_level == "admin":
+                logger.warning("Attempted to assign admin permission to regular user", extra={
+                    "assignment_id": str(assignment_id),
+                    "user_id": str(existing_assignment.user_id),
+                    "user_role": user.role
+                })
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="普通用户只能被分配只读或编辑权限"
+                )
+
         logger.info("Updating assignment", extra={
             "assignment_id": str(assignment_id),
             "permission_level": assignment_data.permission_level,

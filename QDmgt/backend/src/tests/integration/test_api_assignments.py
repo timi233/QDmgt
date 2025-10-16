@@ -192,6 +192,7 @@ class TestGetAssignmentsByUserAPI:
                 description=f"Test channel {i}",
                 status=ChannelStatus.active,
                 business_type=BusinessType.basic,
+                contact_person=None,
                 contact_email=None,
                 contact_phone=None,
                 created_by=admin_id
@@ -232,6 +233,7 @@ class TestGetAssignmentsByUserAPI:
                 description=f"Test channel {i}",
                 status=ChannelStatus.active,
                 business_type=BusinessType.basic,
+                contact_person=None,
                 contact_email=None,
                 contact_phone=None,
                 created_by=admin_id
@@ -377,7 +379,7 @@ class TestUpdateAssignmentAPI:
 class TestDeleteAssignmentAPI:
     """Test DELETE /assignments/{id} endpoint"""
 
-    def test_delete_assignment_success(self, client: TestClient, db_session: Session, test_user: User, test_channel: Channel, test_admin: User):
+    def test_delete_assignment_success(self, client: TestClient, db_session: Session, test_user: User, test_channel: Channel, test_admin: User, auth_headers_admin: dict):
         """Test successful assignment deletion"""
         from backend.src.services.assignment_service import AssignmentService
 
@@ -390,14 +392,15 @@ class TestDeleteAssignmentAPI:
             assigned_by=uuid.UUID(test_admin.id) if isinstance(test_admin.id, str) else test_admin.id,
             target_responsibility=False
         )
+        assignment_id = assignment.id  # Save ID before deletion to avoid ObjectDeletedError
 
-        response = client.delete(f"/api/v1/assignments/{assignment.id}")
+        response = client.delete(f"/api/v1/assignments/{assignment_id}", headers=auth_headers_admin)
 
         assert response.status_code == 200
         assert "deleted successfully" in response.json()["message"]
 
         # Verify assignment is deleted
-        verify_response = client.get(f"/api/v1/assignments/{assignment.id}")
+        verify_response = client.get(f"/api/v1/assignments/{assignment_id}", headers=auth_headers_admin)
         assert verify_response.status_code == 404
 
     def test_delete_assignment_not_found(self, client: TestClient):

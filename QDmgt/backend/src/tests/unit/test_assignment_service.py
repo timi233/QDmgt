@@ -194,6 +194,7 @@ class TestGetAssignmentsByUser:
                 description=f"Test channel {i}",
                 status=ChannelStatus.active,
                 business_type=BusinessType.basic,
+                contact_person=None,
                 contact_email=None,
                 contact_phone=None,
                 created_by=admin_id
@@ -231,6 +232,7 @@ class TestGetAssignmentsByUser:
                 description=f"Test channel {i}",
                 status=ChannelStatus.active,
                 business_type=BusinessType.basic,
+                contact_person=None,
                 contact_email=None,
                 contact_phone=None,
                 created_by=admin_id
@@ -508,11 +510,13 @@ class TestGetUserChannelsWithPermission:
         read_channel = ChannelService.create_channel(
             db=db, name="Read Channel", description="Test",
             status=ChannelStatus.active, business_type=BusinessType.basic,
+            contact_person=None,
             contact_email=None, contact_phone=None, created_by=admin_id
         )
         write_channel = ChannelService.create_channel(
             db=db, name="Write Channel", description="Test",
             status=ChannelStatus.active, business_type=BusinessType.basic,
+            contact_person=None,
             contact_email=None, contact_phone=None, created_by=admin_id
         )
 
@@ -549,6 +553,7 @@ class TestGetUserChannelsWithPermission:
         admin_channel = ChannelService.create_channel(
             db=db, name="Admin Channel", description="Test",
             status=ChannelStatus.active, business_type=BusinessType.basic,
+            contact_person=None,
             contact_email=None, contact_phone=None, created_by=admin_id
         )
 

@@ -104,7 +104,7 @@ class TestCreateChannelAPI:
             }
         )
 
-        assert response.status_code == 403
+        assert response.status_code == 401  # No auth token = 401 Unauthorized
 
 
 # =============================================================================
@@ -148,9 +148,9 @@ class TestGetChannelAPI:
 class TestListChannelsAPI:
     """Test GET /channels endpoint"""
 
-    def test_list_channels_no_filters(self, client: TestClient, test_channel: Channel):
+    def test_list_channels_no_filters(self, client: TestClient, test_channel: Channel, auth_headers_admin: dict):
         """Test listing all channels"""
-        response = client.get("/api/v1/channels/")
+        response = client.get("/api/v1/channels/", headers=auth_headers_admin)
 
         assert response.status_code == 200
         data = response.json()
@@ -162,7 +162,7 @@ class TestListChannelsAPI:
         assert data["total"] >= 1
         assert len(data["channels"]) >= 1
 
-    def test_list_channels_with_pagination(self, client: TestClient, db_session: Session, test_admin: User):
+    def test_list_channels_with_pagination(self, client: TestClient, db_session: Session, test_admin: User, auth_headers_admin: dict):
         """Test pagination works correctly"""
         # Create multiple channels
         from backend.src.services.channel_service import ChannelService
@@ -174,25 +174,26 @@ class TestListChannelsAPI:
                 description=f"Description {i}",
                 status=ChannelStatus.active,
                 business_type=BusinessType.basic,
+                contact_person=None,
                 contact_email=None,
                 contact_phone=None,
                 created_by=uuid.UUID(test_admin.id) if isinstance(test_admin.id, str) else test_admin.id
             )
 
         # Get first page
-        response = client.get("/api/v1/channels/?skip=0&limit=2")
+        response = client.get("/api/v1/channels/?skip=0&limit=2", headers=auth_headers_admin)
         assert response.status_code == 200
         data = response.json()
         assert len(data["channels"]) == 2
         assert data["total"] >= 5
 
         # Get second page
-        response = client.get("/api/v1/channels/?skip=2&limit=2")
+        response = client.get("/api/v1/channels/?skip=2&limit=2", headers=auth_headers_admin)
         assert response.status_code == 200
         data = response.json()
         assert len(data["channels"]) == 2
 
-    def test_list_channels_filter_by_status(self, client: TestClient, db_session: Session, test_admin: User):
+    def test_list_channels_filter_by_status(self, client: TestClient, db_session: Session, test_admin: User, auth_headers_admin: dict):
         """Test filtering channels by status"""
         from backend.src.services.channel_service import ChannelService
 
@@ -203,6 +204,7 @@ class TestListChannelsAPI:
             description="Test",
             status=ChannelStatus.active,
             business_type=BusinessType.basic,
+            contact_person=None,
             contact_email=None,
             contact_phone=None,
             created_by=uuid.UUID(test_admin.id) if isinstance(test_admin.id, str) else test_admin.id
@@ -213,18 +215,19 @@ class TestListChannelsAPI:
             description="Test",
             status=ChannelStatus.inactive,
             business_type=BusinessType.basic,
+            contact_person=None,
             contact_email=None,
             contact_phone=None,
             created_by=uuid.UUID(test_admin.id) if isinstance(test_admin.id, str) else test_admin.id
         )
 
         # Filter by active
-        response = client.get("/api/v1/channels/?status=active")
+        response = client.get("/api/v1/channels/?status=active", headers=auth_headers_admin)
         assert response.status_code == 200
         data = response.json()
         assert all(c["status"] == "active" for c in data["channels"])
 
-    def test_list_channels_search(self, client: TestClient, db_session: Session, test_admin: User):
+    def test_list_channels_search(self, client: TestClient, db_session: Session, test_admin: User, auth_headers_admin: dict):
         """Test searching channels by name"""
         from backend.src.services.channel_service import ChannelService
 
@@ -234,12 +237,13 @@ class TestListChannelsAPI:
             description="Fruit store",
             status=ChannelStatus.active,
             business_type=BusinessType.basic,
+            contact_person=None,
             contact_email=None,
             contact_phone=None,
             created_by=uuid.UUID(test_admin.id) if isinstance(test_admin.id, str) else test_admin.id
         )
 
-        response = client.get("/api/v1/channels/?search=Apple")
+        response = client.get("/api/v1/channels/?search=Apple", headers=auth_headers_admin)
         assert response.status_code == 200
         data = response.json()
         assert data["total"] >= 1
@@ -308,7 +312,7 @@ class TestUpdateChannelAPI:
             json={"name": "Unauthorized Update"}
         )
 
-        assert response.status_code == 403
+        assert response.status_code == 401  # No auth token = 401 Unauthorized
 
 
 # =============================================================================
@@ -319,7 +323,7 @@ class TestUpdateChannelAPI:
 class TestDeleteChannelAPI:
     """Test DELETE /channels/{id} endpoint"""
 
-    def test_delete_channel_success(self, client: TestClient, db_session: Session, test_admin: User):
+    def test_delete_channel_success(self, client: TestClient, db_session: Session, test_admin: User, auth_headers_admin: dict):
         """Test successful channel deletion"""
         from backend.src.services.channel_service import ChannelService
 
@@ -330,24 +334,26 @@ class TestDeleteChannelAPI:
             description="Will be deleted",
             status=ChannelStatus.active,
             business_type=BusinessType.basic,
+            contact_person=None,
             contact_email=None,
             contact_phone=None,
             created_by=uuid.UUID(test_admin.id) if isinstance(test_admin.id, str) else test_admin.id
         )
+        channel_id = channel.id  # Save ID before deletion to avoid DetachedInstanceError
 
-        response = client.delete(f"/api/v1/channels/{channel.id}")
+        response = client.delete(f"/api/v1/channels/{channel_id}", headers=auth_headers_admin)
 
         assert response.status_code == 200
         assert "deleted successfully" in response.json()["message"]
 
         # Verify channel is deleted
-        verify_response = client.get(f"/api/v1/channels/{channel.id}")
+        verify_response = client.get(f"/api/v1/channels/{channel_id}", headers=auth_headers_admin)
         assert verify_response.status_code == 404
 
-    def test_delete_channel_not_found(self, client: TestClient):
+    def test_delete_channel_not_found(self, client: TestClient, auth_headers_admin: dict):
         """Test deleting non-existent channel"""
         non_existent_id = str(uuid.uuid4())
 
-        response = client.delete(f"/api/v1/channels/{non_existent_id}")
+        response = client.delete(f"/api/v1/channels/{non_existent_id}", headers=auth_headers_admin)
 
         assert response.status_code == 404

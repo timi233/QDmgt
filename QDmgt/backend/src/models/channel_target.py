@@ -1,9 +1,77 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, Enum, ForeignKey, DECIMAL, UniqueConstraint
+from sqlalchemy import Column, Integer, String, DateTime, Text, Enum, ForeignKey, DECIMAL, UniqueConstraint, JSON, CheckConstraint
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import uuid
 from enum import Enum as PyEnum
 from ..database import Base, GUID
+
+
+class TargetType(PyEnum):
+    """Target type: person or channel"""
+    person = "person"
+    channel = "channel"
+
+
+class PeriodType(PyEnum):
+    """Period granularity: quarter or month"""
+    quarter = "quarter"
+    month = "month"
+
+
+class UnifiedTarget(Base):
+    """Unified target model supporting person/channel and quarter/month periods."""
+
+    __tablename__ = "unified_targets"
+    __table_args__ = (
+        UniqueConstraint(
+            'target_type', 'target_id', 'period_type', 'year', 'quarter', 'month',
+            name='uix_target_period'
+        ),
+        CheckConstraint(
+            "(period_type = 'quarter' AND month IS NULL) OR (period_type = 'month' AND month IS NOT NULL)",
+            name='chk_period_consistency'
+        ),
+    )
+
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
+
+    target_type = Column(Enum(TargetType), nullable=False, index=True)
+    target_id = Column(GUID, nullable=False, index=True)
+
+    period_type = Column(Enum(PeriodType), nullable=False, index=True)
+    year = Column(Integer, nullable=False, index=True)
+    quarter = Column(Integer, nullable=False, index=True)
+    month = Column(Integer, nullable=True, index=True)
+
+    new_signing_target = Column(Integer, default=0, nullable=False)
+    core_opportunity_target = Column(Integer, default=0, nullable=False)
+    core_performance_target = Column(Integer, default=0, nullable=False)
+    high_value_opportunity_target = Column(Integer, default=0, nullable=False)
+    high_value_performance_target = Column(Integer, default=0, nullable=False)
+
+    new_signing_achieved = Column(Integer, default=0, nullable=False)
+    core_opportunity_achieved = Column(Integer, default=0, nullable=False)
+    core_performance_achieved = Column(Integer, default=0, nullable=False)
+    high_value_opportunity_achieved = Column(Integer, default=0, nullable=False)
+    high_value_performance_achieved = Column(Integer, default=0, nullable=False)
+
+    notes = Column(Text, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
+    created_by = Column(GUID, ForeignKey("users.id"), nullable=False)
+    last_modified_by = Column(GUID, ForeignKey("users.id"), nullable=False)
+
+    creator = relationship("User", foreign_keys=[created_by])
+    last_modifier = relationship("User", foreign_keys=[last_modified_by])
+
+    def __repr__(self):
+        return (
+            f"<UnifiedTarget(id={self.id}, target_type={self.target_type}, "
+            f"target_id={self.target_id}, year={self.year}, quarter={self.quarter}, "
+            f"month={self.month})>"
+        )
+
 
 class TargetPlan(Base):
     __tablename__ = "channel_targets"
@@ -23,15 +91,61 @@ class TargetPlan(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
     created_by = Column(GUID, ForeignKey("users.id"), nullable=False)
-    
+
     # Achievement tracking
     achieved_performance = Column(DECIMAL(10, 2), default=0)  # in W (tens of thousands)
     achieved_opportunity = Column(DECIMAL(10, 2), default=0)  # in W (tens of thousands)
     achieved_project_count = Column(Integer, default=0)
-    
+
     # Relationships
     channel = relationship("Channel", backref="targets")
     creator = relationship("User", backref="created_targets")
-    
+
     def __repr__(self):
         return f"<TargetPlan(id={self.id}, channel_id={self.channel_id}, year={self.year}, quarter={self.quarter})>"
+
+
+class PersonChannelTarget(Base):
+    """
+    人员/渠道目标模型 - 新的目标管理系统
+
+    按人员或渠道维度存储季度和月度目标
+    """
+    __tablename__ = "person_channel_targets"
+    __table_args__ = (
+        UniqueConstraint('target_type', 'target_id', 'year', 'quarter', name='uix_target_period'),
+    )
+
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
+
+    # 目标类型和关联ID
+    target_type = Column(Enum(TargetType), nullable=False, index=True)
+    target_id = Column(GUID, nullable=False, index=True)  # user.id 或 channel.id
+
+    # 时间维度
+    year = Column(Integer, nullable=False, index=True)
+    quarter = Column(Integer, nullable=False, index=True)  # 1-4
+
+    # 季度目标
+    quarter_new_signing = Column(Integer, default=0)
+    quarter_core_opportunity = Column(Integer, default=0)
+    quarter_core_performance = Column(Integer, default=0)
+    quarter_high_value_opportunity = Column(Integer, default=0)
+    quarter_high_value_performance = Column(Integer, default=0)
+
+    # 月度目标 (JSON格式存储3个月的数据)
+    # 格式: {"1": {"new_signing": 30, "core_opportunity": 15, ...}, "2": {...}, "3": {...}}
+    month_targets = Column(JSON, nullable=False, default=dict)
+
+    # 元数据
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
+    created_by = Column(GUID, ForeignKey("users.id"), nullable=False)
+    last_modified_by = Column(GUID, ForeignKey("users.id"), nullable=False)
+
+    # Relationships
+    creator = relationship("User", foreign_keys=[created_by])
+    last_modifier = relationship("User", foreign_keys=[last_modified_by])
+
+    def __repr__(self):
+        return f"<PersonChannelTarget(id={self.id}, type={self.target_type}, year={self.year}, quarter={self.quarter})>"
