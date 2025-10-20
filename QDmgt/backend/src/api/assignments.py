@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from uuid import UUID
 from datetime import datetime
 from ..database import get_db
@@ -12,6 +12,7 @@ from ..utils.exceptions import ValidationError, NotFoundError, ConflictError
 from ..utils.logger import logger
 from pydantic import BaseModel
 from enum import Enum
+from ..auth.auth_service import get_current_user
 
 
 router = APIRouter(prefix="/assignments", tags=["assignments"])
@@ -67,12 +68,11 @@ class AssignmentListResponse(BaseModel):
 @router.post("/", response_model=AssignmentResponse, status_code=status.HTTP_201_CREATED)
 def create_assignment(
     assignment_data: AssignmentCreateRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     try:
-        # For demonstration, using a mock user ID
-        # In real implementation, this would come from auth context
-        mock_user_id = UUID("12345678-1234-5678-1234-123456789012")
+        assigned_by_id = UUID(str(current_user.get("sub")))
 
         # Validate permission level for regular users
         user = db.query(User).filter(User.id == str(assignment_data.user_id)).first()
@@ -90,7 +90,7 @@ def create_assignment(
             "user_id": str(assignment_data.user_id),
             "channel_id": str(assignment_data.channel_id),
             "permission_level": assignment_data.permission_level,
-            "assigned_by": str(mock_user_id)
+            "assigned_by": str(assigned_by_id)
         })
 
         assignment = AssignmentService.create_assignment(
@@ -98,7 +98,7 @@ def create_assignment(
             user_id=assignment_data.user_id,
             channel_id=assignment_data.channel_id,
             permission_level=PermissionLevel(assignment_data.permission_level),
-            assigned_by=mock_user_id,
+            assigned_by=assigned_by_id,
             target_responsibility=assignment_data.target_responsibility
         )
 
