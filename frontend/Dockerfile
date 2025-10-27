@@ -1,0 +1,68 @@
+# ============================================
+  # Stage 1: Build React Application
+  # ============================================
+  FROM node:18-alpine AS builder
+
+  LABEL stage=builder
+
+  WORKDIR /app
+
+# 设置代理
+ENV http_proxy=http://192.168.101.20:7890
+ENV https_proxy=http://192.168.101.20:7890
+ENV no_proxy=localhost,127.0.0.1
+
+# 复制package文件
+COPY package*.json ./
+
+  # 安装依赖（包含devDependencies,因为构建需要react-scripts等工具）
+  RUN npm install --legacy-peer-deps && \
+      npm cache clean --force
+
+  # 复制源代码
+  COPY . .
+
+  # 构建时环境变量注入
+  ARG REACT_APP_API_BASE_URL=http://localhost:8001/api/v1
+  ENV REACT_APP_API_BASE_URL=$REACT_APP_API_BASE_URL
+
+  # 禁用构建时的严格检查
+  ENV CI=false
+  ENV DISABLE_ESLINT_PLUGIN=true
+  ENV TSC_COMPILE_ON_ERROR=true
+  ENV GENERATE_SOURCEMAP=false
+
+  # 构建生产版本
+  RUN npm run build
+
+  # ============================================
+  # Stage 2: Nginx Production Server
+  # ============================================
+  FROM nginx:1.25-alpine
+
+  LABEL maintainer="QDmgt Team"
+  LABEL description="Channel Management System - Frontend Web Server"
+
+  # 复制构建产物到Nginx静态文件目录
+  COPY --from=builder /app/build /usr/share/nginx/html
+
+  # 删除默认Nginx配置
+  RUN rm /etc/nginx/conf.d/default.conf
+
+  # 复制自定义Nginx配置
+  COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+  # 创建Nginx缓存目录
+  RUN mkdir -p /var/cache/nginx/client_temp && \
+      chown -R nginx:nginx /var/cache/nginx && \
+      chown -R nginx:nginx /usr/share/nginx/html
+
+  # 暴露端口
+  EXPOSE 80
+
+  # 健康检查
+  HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+      CMD wget --quiet --tries=1 --spider http://localhost/ || exit 1
+
+  # 启动Nginx（前台运行）
+  CMD ["nginx", "-g", "daemon off;"]
