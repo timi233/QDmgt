@@ -1,0 +1,80 @@
+.workspace-layout {
+  min-height: 100vh;
+  background-color: #f0f2f5;
+}
+
+.workspace-content {
+  padding: 24px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.workspace-header {
+  margin-bottom: 24px;
+}
+
+.workspace-filters {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.workspace-task-groups {
+  margin-top: 24px;
+}
+
+.task-group {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  min-height: 600px;
+}
+
+.task-group-header {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.task-group-header.urgent {
+  border-bottom-color: #ff4d4f;
+}
+
+.task-group-header.today {
+  border-bottom-color: #faad14;
+}
+
+.task-group-header.upcoming {
+  border-bottom-color: #1890ff;
+}
+
+.task-group-header h4 {
+  margin-bottom: 4px;
+}
+
+.task-group-content {
+  max-height: 520px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.task-group-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.task-group-content::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 3px;
+}
+
+.task-group-content::-webkit-scrollbar-thumb {
+  background: #bfbfbf;
+  border-radius: 3px;
+}
+
+.task-group-content::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}

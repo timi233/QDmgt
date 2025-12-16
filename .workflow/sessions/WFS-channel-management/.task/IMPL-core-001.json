@@ -1,0 +1,178 @@
+{
+  "id": "IMPL-core-001",
+  "title": "项目初始化与基础架构搭建",
+  "status": "completed",
+  "priority": "high",
+  "meta": {
+    "type": "feature",
+    "agent": "@code-developer",
+    "estimated_complexity": "medium"
+  },
+  "context": {
+    "requirements": [
+      "创建12个目录结构: [前端: src/, src/components/, src/pages/, src/services/, src/utils/, src/styles/; 后端: backend/, backend/controllers/, backend/models/, backend/services/, backend/middleware/, backend/config/]",
+      "配置5个核心文件: [package.json前端依赖, package.json后端依赖, docker-compose.yml容器编排, .env环境变量, tsconfig.json TypeScript配置]",
+      "初始化3个数据库容器: [PostgreSQL数据库容器, Redis缓存容器, Nginx反向代理容器]",
+      "创建4个数据库表: [users用户表, distributors分销商表, tasks任务表, events事件流表]",
+      "配置2个开发环境: [前端开发服务器(React/Vue), 后端开发服务器(Node.js/Express)]"
+    ],
+    "focus_paths": [
+      "项目根目录",
+      "前端目录结构",
+      "后端目录结构",
+      "Docker配置",
+      "数据库迁移脚本"
+    ],
+    "acceptance": [
+      "12个目录创建完成: 验证by ls -R | grep '^\\./src\\|^\\./backend' | wc -l = 12",
+      "5个配置文件存在且格式正确: 验证by ls package.json docker-compose.yml .env tsconfig.json | wc -l = 5",
+      "3个Docker容器成功启动: 验证by docker-compose ps | grep Up | wc -l = 3",
+      "4个数据库表创建成功: 验证by psql连接后执行\\dt显示4张表",
+      "前后端开发服务器正常启动: 验证by curl http://localhost:3000 和 curl http://localhost:8080返回200"
+    ],
+    "depends_on": [],
+    "artifacts": [
+      {
+        "type": "synthesis_specification",
+        "path": ".workflow/sessions/WFS-channel-management/brainstorm/guidance-specification.md",
+        "priority": "highest"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/sessions/WFS-channel-management/brainstorm/system-architect/analysis.md",
+        "priority": "high"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/sessions/WFS-channel-management/brainstorm/data-architect/analysis.md",
+        "priority": "high"
+      }
+    ]
+  },
+  "flow_control": {
+    "pre_analysis": [
+      {
+        "step": "load_synthesis_specification",
+        "commands": [
+          "bash(ls 'D:\\渠道\\.workflow\\sessions\\WFS-channel-management\\brainstorm\\guidance-specification.md' 2>/dev/null)",
+          "Read('D:\\渠道\\.workflow\\sessions\\WFS-channel-management\\brainstorm\\guidance-specification.md')"
+        ],
+        "output_to": "synthesis_specification",
+        "on_error": "skip_optional"
+      },
+      {
+        "step": "load_architecture_analysis",
+        "commands": [
+          "Read('D:\\渠道\\.workflow\\sessions\\WFS-channel-management\\brainstorm\\system-architect\\analysis.md', limit=200)"
+        ],
+        "output_to": "architecture_design",
+        "on_error": "skip_optional"
+      }
+    ],
+    "implementation_approach": [
+      {
+        "step": 1,
+        "title": "创建项目目录结构",
+        "description": "建立前后端分离的目录架构,包含12个核心目录",
+        "modification_points": [
+          "创建12个目录: [src/, src/components/, src/pages/, src/services/, src/utils/, src/styles/, backend/, backend/controllers/, backend/models/, backend/services/, backend/middleware/, backend/config/]"
+        ],
+        "logic_flow": [
+          "执行mkdir -p命令创建前端目录: src/, src/components/, src/pages/, src/services/, src/utils/, src/styles/",
+          "执行mkdir -p命令创建后端目录: backend/, backend/controllers/, backend/models/, backend/services/, backend/middleware/, backend/config/",
+          "验证所有目录创建成功: ls -R确认12个目录存在"
+        ],
+        "depends_on": [],
+        "output": "directory_structure"
+      },
+      {
+        "step": 2,
+        "title": "初始化Node.js项目配置",
+        "description": "配置前后端package.json,安装5个核心依赖包",
+        "modification_points": [
+          "创建前端package.json: 包含React/Vue, TypeScript, Ant Design, Axios, React Router共5个核心依赖",
+          "创建后端package.json: 包含Express, Sequelize, pg(PostgreSQL客户端), ioredis, jsonwebtoken共5个核心依赖",
+          "创建tsconfig.json: TypeScript编译配置"
+        ],
+        "logic_flow": [
+          "在项目根目录执行npm init初始化前端项目",
+          "在backend/目录执行npm init初始化后端项目",
+          "安装前端依赖: npm install react typescript antd axios react-router-dom",
+          "安装后端依赖: npm install express sequelize pg ioredis jsonwebtoken",
+          "创建tsconfig.json配置TypeScript编译选项"
+        ],
+        "depends_on": [1],
+        "output": "npm_configuration"
+      },
+      {
+        "step": 3,
+        "title": "配置Docker容器编排",
+        "description": "创建docker-compose.yml,定义3个服务容器",
+        "modification_points": [
+          "创建docker-compose.yml文件: 定义PostgreSQL容器(端口5432), Redis容器(端口6379), Nginx容器(端口80)"
+        ],
+        "logic_flow": [
+          "创建docker-compose.yml文件",
+          "定义PostgreSQL服务: 版本14,环境变量POSTGRES_DB/USER/PASSWORD,数据卷挂载",
+          "定义Redis服务: 版本7,持久化配置",
+          "定义Nginx服务: 反向代理配置,静态资源目录",
+          "执行docker-compose up -d启动容器",
+          "验证容器状态: docker-compose ps显示3个容器Up"
+        ],
+        "depends_on": [2],
+        "output": "docker_containers"
+      },
+      {
+        "step": 4,
+        "title": "初始化数据库Schema",
+        "description": "创建4张核心数据库表",
+        "modification_points": [
+          "创建users表: 包含id, username, password_hash, role(sales/leader), created_at共5个字段",
+          "创建distributors表: 包含id, name, region, contact_person, phone, cooperation_level, owner_user_id, created_at, updated_at共9个字段",
+          "创建tasks表: 包含id, distributor_id, assigned_user_id, title, description, deadline, priority, status, created_at共9个字段",
+          "创建events表: 包含id, event_type, entity_type, entity_id, user_id, payload(JSONB), timestamp共7个字段"
+        ],
+        "logic_flow": [
+          "连接PostgreSQL数据库",
+          "执行CREATE TABLE users创建用户表",
+          "执行CREATE TABLE distributors创建分销商表",
+          "执行CREATE TABLE tasks创建任务表",
+          "执行CREATE TABLE events创建事件流表",
+          "为关键字段创建索引: distributors.owner_user_id, tasks.assigned_user_id, tasks.deadline",
+          "验证表创建: \\dt显示4张表"
+        ],
+        "depends_on": [3],
+        "output": "database_schema"
+      },
+      {
+        "step": 5,
+        "title": "配置开发环境与启动脚本",
+        "description": "创建.env环境变量文件,配置开发服务器",
+        "modification_points": [
+          "创建.env文件: 包含DATABASE_URL, REDIS_URL, JWT_SECRET, NODE_ENV共4个环境变量",
+          "创建前端启动脚本: npm run dev命令启动React开发服务器(端口3000)",
+          "创建后端启动脚本: npm run dev命令启动Express服务器(端口8080)"
+        ],
+        "logic_flow": [
+          "创建.env文件并配置环境变量",
+          "在前端package.json中添加\"dev\": \"vite\"或\"react-scripts start\"脚本",
+          "在后端package.json中添加\"dev\": \"nodemon server.ts\"脚本",
+          "测试前端服务器: npm run dev后访问http://localhost:3000",
+          "测试后端服务器: cd backend && npm run dev后访问http://localhost:8080",
+          "验证开发环境: 两个服务器同时正常启动"
+        ],
+        "depends_on": [4],
+        "output": "development_environment"
+      }
+    ],
+    "target_files": [
+      "package.json",
+      "backend/package.json",
+      "docker-compose.yml",
+      ".env",
+      "tsconfig.json",
+      "backend/migrations/001_init_schema.sql",
+      "README.md"
+    ]
+  }
+}

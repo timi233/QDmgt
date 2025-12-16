@@ -1,0 +1,255 @@
+{
+  "id": "IMPL-003",
+  "title": "后端基础架构搭建（Express + 中间件）",
+  "status": "pending",
+  "meta": {
+    "type": "infrastructure",
+    "agent": "@code-developer",
+    "sprint": 1,
+    "priority": "high",
+    "estimated_hours": 16
+  },
+  "context": {
+    "requirements": [
+      "创建 8 个中间件: [errorHandler, requestLogger, authMiddleware, rateLimiter, corsConfig, helmetConfig, validationMiddleware, notFoundHandler]",
+      "配置 6 个 Express 插件: [express.json(), express.urlencoded(), cors, helmet, morgan, compression]",
+      "创建 5 个工具模块: [logger (Winston), responseFormatter, errorTypes, asyncHandler, config loader]",
+      "搭建 3 层架构: [routes → controllers → services]",
+      "实现 1 个健康检查端点: GET /api/v1/health"
+    ],
+    "focus_paths": [
+      "backend/src/",
+      "backend/src/middlewares/",
+      "backend/src/utils/",
+      "backend/src/config/"
+    ],
+    "acceptance": [
+      "8 个中间件创建完成: 验证 ls backend/src/middlewares/*.ts | wc -l = 8",
+      "服务器正常启动: 验证 npm run dev && curl http://localhost:4000/health 返回 200",
+      "日志正常输出: 验证 logs/app.log 文件存在且有内容",
+      "错误处理生效: 验证 curl http://localhost:4000/api/v1/nonexistent 返回统一错误格式",
+      "TypeScript 编译通过: 验证 npm run build 成功生成 dist/ 目录"
+    ],
+    "depends_on": ["IMPL-001"],
+    "artifacts": [
+      {
+        "type": "analysis",
+        "path": ".workflow/.brainstorming/system-architect/analysis.md",
+        "priority": "highest"
+      },
+      {
+        "type": "analysis",
+        "path": ".workflow/.brainstorming/api-designer/analysis.md",
+        "priority": "high"
+      }
+    ]
+  },
+  "flow_control": {
+    "pre_analysis": [
+      {
+        "step": "load_architecture_spec",
+        "commands": [
+          "bash(ls .workflow/.brainstorming/system-architect/analysis.md 2>/dev/null)",
+          "Read(.workflow/.brainstorming/system-architect/analysis.md)"
+        ],
+        "output_to": "architecture_requirements",
+        "on_error": "skip_optional"
+      },
+      {
+        "step": "check_dependencies",
+        "commands": [
+          "bash(cd backend && npm list express @types/express 2>/dev/null || echo 'Dependencies missing')"
+        ],
+        "output_to": "dependency_check",
+        "on_error": "warn"
+      }
+    ],
+    "implementation_approach": [
+      {
+        "step": 1,
+        "title": "创建配置管理模块",
+        "description": "实现环境变量加载和配置验证",
+        "modification_points": [
+          "创建 2 个文件: [backend/src/config/index.ts (80 行), backend/src/config/env.schema.ts (40 行)]",
+          "定义 15 个配置项: [PORT, NODE_ENV, DATABASE_URL, REDIS_URL, JWT_SECRET, JWT_REFRESH_SECRET, JWT_EXPIRES_IN, JWT_REFRESH_EXPIRES_IN, CORS_ORIGIN, LOG_LEVEL, RATE_LIMIT_WINDOW, RATE_LIMIT_MAX, BCRYPT_ROUNDS, API_PREFIX, UPLOAD_DIR]"
+        ],
+        "logic_flow": [
+          "使用 Zod 定义环境变量 schema (env.schema.ts)",
+          "实现配置加载函数 (validateEnv)",
+          "导出类型安全的配置对象",
+          "配置默认值和类型转换",
+          "添加配置验证错误处理"
+        ],
+        "depends_on": [],
+        "output": "config_module"
+      },
+      {
+        "step": 2,
+        "title": "实现日志系统",
+        "description": "基于 Winston 创建结构化日志",
+        "modification_points": [
+          "创建 1 个文件: backend/src/utils/logger.ts (120 行)",
+          "配置 3 个日志传输: [Console (开发环境彩色输出), File - app.log (所有日志), File - error.log (错误日志)]",
+          "定义 5 个日志级别: [error, warn, info, http, debug]"
+        ],
+        "logic_flow": [
+          "导入 Winston 和配置",
+          "定义日志格式 (timestamp + colorize + printf)",
+          "创建 Console transport (开发环境)",
+          "创建 File transports (生产环境)",
+          "实现按日期轮转日志 (winston-daily-rotate-file)",
+          "导出 logger 单例",
+          "添加 HTTP 请求日志中间件 (Morgan + Winston 集成)"
+        ],
+        "depends_on": [1],
+        "output": "logger_module"
+      },
+      {
+        "step": 3,
+        "title": "创建核心中间件",
+        "description": "实现 8 个中间件模块",
+        "modification_points": [
+          "创建 8 个文件: [errorHandler.ts (60 行), requestLogger.ts (30 行), authMiddleware.ts (80 行, 占位), rateLimiter.ts (40 行), corsConfig.ts (30 行), validationMiddleware.ts (50 行), asyncHandler.ts (20 行), notFoundHandler.ts (25 行)]"
+        ],
+        "logic_flow": [
+          "errorHandler.ts: 统一错误处理 (捕获所有错误, 格式化响应, 区分开发/生产环境)",
+          "requestLogger.ts: HTTP 请求日志 (Morgan + Winston)",
+          "authMiddleware.ts: JWT 验证占位 (待 IMPL-005 实现)",
+          "rateLimiter.ts: 限流中间件 (express-rate-limit, 100 req/15min)",
+          "corsConfig.ts: CORS 配置 (允许凭证, 配置来源)",
+          "validationMiddleware.ts: Zod 请求校验工厂函数",
+          "asyncHandler.ts: 异步错误包装器",
+          "notFoundHandler.ts: 404 处理器"
+        ],
+        "depends_on": [2],
+        "output": "middleware_modules"
+      },
+      {
+        "step": 4,
+        "title": "实现工具函数",
+        "description": "创建 5 个工具模块",
+        "modification_points": [
+          "创建 5 个文件: [responseFormatter.ts (40 行), errorTypes.ts (60 行), asyncHandler.ts (已在 step 3), envLoader.ts (已在 step 1), dateHelper.ts (30 行)]",
+          "定义 6 个自定义错误类: [AppError, ValidationError, AuthenticationError, AuthorizationError, NotFoundError, ConflictError]"
+        ],
+        "logic_flow": [
+          "responseFormatter.ts: 统一响应格式 {success, data, message, meta}",
+          "errorTypes.ts: 自定义错误类继承 Error",
+          "为每个错误类添加 statusCode 和 isOperational 属性",
+          "dateHelper.ts: 日期格式化工具 (基于 dayjs)"
+        ],
+        "depends_on": [1],
+        "output": "utility_modules"
+      },
+      {
+        "step": 5,
+        "title": "搭建 Express 应用核心",
+        "description": "创建 app.ts 和 server.ts 入口文件",
+        "modification_points": [
+          "创建 2 个文件: [backend/src/app.ts (100 行), backend/src/server.ts (60 行)]",
+          "配置 6 个全局中间件: [helmet, cors, compression, express.json, morgan, rate limiter]",
+          "创建 1 个健康检查路由: GET /api/v1/health"
+        ],
+        "logic_flow": [
+          "app.ts: 创建 Express 实例",
+          "应用安全中间件 (helmet)",
+          "应用 CORS 配置",
+          "应用 body parser (json, urlencoded)",
+          "应用请求日志 (morgan + winston)",
+          "应用 gzip 压缩 (compression)",
+          "应用限流器 (rate limiter)",
+          "注册健康检查路由",
+          "应用 404 处理器",
+          "应用错误处理器",
+          "server.ts: 启动 HTTP 服务器",
+          "优雅关闭处理 (SIGTERM, SIGINT)",
+          "未捕获异常处理 (uncaughtException, unhandledRejection)"
+        ],
+        "depends_on": [3, 4],
+        "output": "express_app"
+      },
+      {
+        "step": 6,
+        "title": "创建基础路由结构",
+        "description": "搭建路由分层架构",
+        "modification_points": [
+          "创建 3 个文件: [backend/src/routes/index.ts (50 行), backend/src/routes/health.route.ts (20 行), backend/src/controllers/health.controller.ts (30 行)]",
+          "定义 1 个 API 版本前缀: /api/v1"
+        ],
+        "logic_flow": [
+          "routes/index.ts: 创建主路由器",
+          "注册 /health 路由",
+          "导出路由器供 app.ts 使用",
+          "health.route.ts: 定义健康检查路由",
+          "health.controller.ts: 实现健康检查逻辑",
+          "返回 {status: 'ok', timestamp, uptime, environment}"
+        ],
+        "depends_on": [5],
+        "output": "routing_structure"
+      },
+      {
+        "step": 7,
+        "title": "配置 TypeScript 和构建脚本",
+        "description": "优化 tsconfig 和 npm scripts",
+        "modification_points": [
+          "修改 1 个文件: backend/tsconfig.json (添加 path aliases)",
+          "修改 1 个文件: backend/package.json (添加 6 个 scripts)",
+          "添加 6 个 npm scripts: [dev (ts-node-dev), build (tsc), start (node dist), type-check (tsc --noEmit), lint (eslint), test (jest)]"
+        ],
+        "logic_flow": [
+          "配置 tsconfig.json path aliases (@/config, @/utils, @/middlewares, @/routes)",
+          "配置 outDir: dist, rootDir: src",
+          "添加 dev script: ts-node-dev --respawn src/server.ts",
+          "添加 build script: tsc",
+          "添加 start script: node dist/server.js",
+          "配置 nodemon.json (监听 .ts 文件变化)"
+        ],
+        "depends_on": [5, 6],
+        "output": "build_configuration"
+      },
+      {
+        "step": 8,
+        "title": "测试和验证",
+        "description": "验证服务器启动和中间件功能",
+        "modification_points": [
+          "执行 3 个测试命令: [npm run dev, curl http://localhost:4000/health, curl http://localhost:4000/nonexistent]",
+          "验证 3 个输出: [健康检查返回 200, 404 返回统一错误格式, 日志文件生成]"
+        ],
+        "logic_flow": [
+          "启动开发服务器 (npm run dev)",
+          "测试健康检查端点 (应返回 {status: 'ok'})",
+          "测试 404 处理 (应返回 {success: false, message: 'Not Found'})",
+          "测试错误日志 (检查 logs/error.log)",
+          "测试访问日志 (检查 logs/app.log)",
+          "运行 TypeScript 类型检查 (npm run type-check)",
+          "运行 ESLint (npm run lint)"
+        ],
+        "depends_on": [7],
+        "output": "validation_tests"
+      }
+    ],
+    "target_files": [
+      "backend/src/config/index.ts",
+      "backend/src/config/env.schema.ts",
+      "backend/src/utils/logger.ts",
+      "backend/src/utils/responseFormatter.ts",
+      "backend/src/utils/errorTypes.ts",
+      "backend/src/utils/dateHelper.ts",
+      "backend/src/middlewares/errorHandler.ts",
+      "backend/src/middlewares/requestLogger.ts",
+      "backend/src/middlewares/authMiddleware.ts",
+      "backend/src/middlewares/rateLimiter.ts",
+      "backend/src/middlewares/corsConfig.ts",
+      "backend/src/middlewares/validationMiddleware.ts",
+      "backend/src/middlewares/asyncHandler.ts",
+      "backend/src/middlewares/notFoundHandler.ts",
+      "backend/src/app.ts",
+      "backend/src/server.ts",
+      "backend/src/routes/index.ts",
+      "backend/src/routes/health.route.ts",
+      "backend/src/controllers/health.controller.ts",
+      "backend/tsconfig.json",
+      "backend/package.json"
+    ]
+  }
+}

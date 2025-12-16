@@ -1,0 +1,151 @@
+{
+  "id": "IMPL-008",
+  "title": "差异化定价策略引擎",
+  "status": "pending",
+  "meta": {
+    "type": "feature",
+    "agent": "@code-developer",
+    "sprint": 2,
+    "priority": "high",
+    "estimated_hours": 16
+  },
+  "context": {
+    "requirements": [
+      "实现 5 个后端 API: [GET /pricing-rules, POST /pricing-rules, PUT /pricing-rules/:id, DELETE /pricing-rules/:id, POST /pricing-rules/calculate (计算价格)]",
+      "创建 1 个 PricingService: 4 个方法 (CRUD + 价格计算引擎)",
+      "实现 1 个价格计算引擎: 根据渠道层级、起订量、产品自动计算最终价格",
+      "前端实现 3 个功能: [定价规则列表, 创建/编辑规则 Modal, 价格计算器组件]",
+      "集成 1 个实时计算: 订单创建时自动调用价格计算"
+    ],
+    "focus_paths": [
+      "backend/src/services/pricing.service.ts",
+      "backend/src/controllers/pricing.controller.ts",
+      "frontend/src/components/business/PriceCalculator.tsx"
+    ],
+    "acceptance": [
+      "5 个 API 正常工作: 验证 CRUD 和价格计算",
+      "价格计算正确: 验证不同渠道层级计算不同折扣价",
+      "起订量折扣生效: 验证数量达到阈值时应用额外折扣",
+      "前端价格计算器: 验证选择产品+渠道后实时显示价格",
+      "规则优先级: 验证多个规则匹配时选择最优惠价格"
+    ],
+    "depends_on": ["IMPL-007"],
+    "artifacts": [
+      {
+        "type": "analysis",
+        "path": ".workflow/.brainstorming/product-manager/analysis.md",
+        "priority": "highest"
+      }
+    ]
+  },
+  "flow_control": {
+    "pre_analysis": [],
+    "implementation_approach": [
+      {
+        "step": 1,
+        "title": "创建 PricingService",
+        "description": "实现定价业务逻辑和计算引擎",
+        "modification_points": [
+          "创建 1 个文件: backend/src/services/pricing.service.ts (250 行)",
+          "实现 4 个方法: [getAllRules, createRule, updateRule, deleteRule]",
+          "实现 1 个核心算法: calculatePrice(productId, channelId, quantity) 返回最终价格"
+        ],
+        "logic_flow": [
+          "calculatePrice 算法:",
+          "1. 查询 Product.basePrice",
+          "2. 查询 Channel.level 和 Channel.discountRate",
+          "3. 查询所有匹配的 PricingRule (productId + channelLevel)",
+          "4. 过滤满足 minQuantity <= quantity <= maxQuantity 的规则",
+          "5. 选择 discountRate 最低的规则 (最优惠)",
+          "6. 计算: finalPrice = basePrice * channelDiscountRate * ruleDiscountRate",
+          "7. 返回 {basePrice, channelDiscountRate, ruleDiscountRate, finalPrice, appliedRuleId}",
+          "CRUD 方法: 标准 Prisma 操作"
+        ],
+        "depends_on": [],
+        "output": "pricing_service"
+      },
+      {
+        "step": 2,
+        "title": "创建 PricingController 和路由",
+        "description": "实现 5 个 API 端点",
+        "modification_points": [
+          "创建 2 个文件: [backend/src/controllers/pricing.controller.ts (120 行), backend/src/routes/pricing.route.ts (50 行)]"
+        ],
+        "logic_flow": [
+          "getAllRules: 支持过滤 (productId, channelLevel)",
+          "createRule: 校验 productId 存在, channelLevel 有效 (1-4)",
+          "calculate: POST /calculate, body: {productId, channelId, quantity}, 调用 PricingService.calculatePrice",
+          "权限: 创建/编辑/删除仅 ADMIN, calculate 公开 (需认证)"
+        ],
+        "depends_on": [1],
+        "output": "pricing_endpoints"
+      },
+      {
+        "step": 3,
+        "title": "实现前端定价规则管理页面",
+        "description": "嵌入到产品详情或独立页面",
+        "modification_points": [
+          "创建 1 个文件: frontend/src/pages/PricingRulesPage.tsx (200 行)",
+          "实现 Table 展示规则: columns [产品, 渠道层级, 折扣率, 起订量, 操作]"
+        ],
+        "logic_flow": [
+          "useQuery 获取规则列表",
+          "CreateRuleModal: Form (productId select, channelLevel select, discountRate input, minQuantity, maxQuantity)",
+          "productId: Select 组件从 productService.getProducts 获取",
+          "channelLevel: Select (总代理/区域/一级/二级)",
+          "discountRate: InputNumber (0-1, step 0.01)",
+          "useMutation 提交"
+        ],
+        "depends_on": [],
+        "output": "pricing_rules_page"
+      },
+      {
+        "step": 4,
+        "title": "实现价格计算器组件",
+        "description": "可复用的价格计算组件",
+        "modification_points": [
+          "创建 1 个文件: frontend/src/components/business/PriceCalculator.tsx (150 行)",
+          "实现实时价格计算: 选择产品+渠道+数量后自动计算"
+        ],
+        "logic_flow": [
+          "组件 Props: {onPriceChange?: (price) => void}",
+          "Form 字段: productId (Select), channelId (Select), quantity (InputNumber)",
+          "useQuery 依赖这 3 个参数: pricingService.calculatePrice({productId, channelId, quantity})",
+          "enabled: !!productId && !!channelId && !!quantity",
+          "显示计算结果: 基础价格, 渠道折扣, 规则折扣, 最终价格 (高亮显示)",
+          "使用 Ant Design Descriptions 组件展示",
+          "onPriceChange 回调: 传递最终价格给父组件"
+        ],
+        "depends_on": [],
+        "output": "price_calculator"
+      },
+      {
+        "step": 5,
+        "title": "测试",
+        "description": "测试定价规则和计算",
+        "modification_points": [
+          "执行 6 个测试: [创建规则, 价格计算, 多规则优先级, 起订量阈值, 无匹配规则, 前端计算器]"
+        ],
+        "logic_flow": [
+          "创建测试规则: 产品 P001, 层级 1 (总代理), 折扣 0.7, 起订量 100",
+          "创建测试规则: 产品 P001, 层级 2 (区域), 折扣 0.8, 起订量 50",
+          "计算测试 1: P001, 层级 1 渠道, 数量 150, 验证应用 0.7 折扣",
+          "计算测试 2: P001, 层级 1 渠道, 数量 50, 验证不满足起订量, 仅应用渠道折扣",
+          "计算测试 3: P001, 层级 2 渠道, 数量 100, 验证应用 0.8 折扣",
+          "前端测试: 使用 PriceCalculator 组件, 验证实时计算"
+        ],
+        "depends_on": [2, 4],
+        "output": "test_results"
+      }
+    ],
+    "target_files": [
+      "backend/src/services/pricing.service.ts",
+      "backend/src/controllers/pricing.controller.ts",
+      "backend/src/routes/pricing.route.ts",
+      "backend/src/validators/pricing.validator.ts",
+      "frontend/src/services/pricingService.ts",
+      "frontend/src/pages/PricingRulesPage.tsx",
+      "frontend/src/components/business/PriceCalculator.tsx"
+    ]
+  }
+}

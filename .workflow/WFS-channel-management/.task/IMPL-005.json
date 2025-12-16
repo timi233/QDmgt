@@ -1,0 +1,155 @@
+{
+  "id": "IMPL-005",
+  "title": "前端UI - 任务工作台和时间轴视图",
+  "status": "pending",
+  "meta": {
+    "type": "feature",
+    "agent": "@code-developer"
+  },
+  "context": {
+    "requirements": [
+      "创建3个React组件: [TaskWorkbench(工作台主页, 350行), TaskCard(任务卡片, 150行), TaskModal(任务详情弹窗, 200行)]",
+      "实现3个时间分组: [今日任务(deadline=today, 默认展开), 明日任务(deadline=tomorrow, 默认折叠), 本周任务(deadline<=7days, 默认折叠)]",
+      "集成5个交互功能: [更新进度(打开进度表单), 标记完成(调用API), 添加备注(打开备注框), 上传附件(文件上传), 点击卡片跳转分销商详情]",
+      "实现4个视觉标识: [优先级色条(高=红/中=黄/低=蓝), 逾期标识(红色背景), 状态徽章(pending/in_progress/completed), 分组折叠图标]"
+    ],
+    "focus_paths": ["src/pages/tasks", "src/components/task-cards"],
+    "acceptance": [
+      "3个组件渲染成功: 验证 npm test -- TaskWorkbench.test.tsx 所有测试通过",
+      "3个时间分组显示: 验证 页面加载后显示3个分组(今日/明日/本周), 今日任务默认展开显示卡片, 明日和本周默认折叠",
+      "5个交互功能验证: 验证 点击'更新进度'打开表单, 填写进度和备注后调用PUT /api/tasks/:id, 成功后任务卡片刷新",
+      "4个视觉标识渲染: 验证 高优先级任务显示左侧红色色条, 逾期任务整个卡片红色背景高亮"
+    ],
+    "depends_on": ["IMPL-004"],
+    "artifacts": [
+      {
+        "type": "synthesis_specification",
+        "path": ".workflow/WFS-channel-management/.brainstorming/guidance-specification.md",
+        "priority": "highest",
+        "usage": "UX设计决策: 任务工作台布局, 时间轴视图交互, EP-007协作功能"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/WFS-channel-management/.brainstorming/ux-expert/analysis.md",
+        "priority": "high",
+        "usage": "UX specifications: 任务优先视图, 分组列表折叠交互, 任务卡片信息架构"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/WFS-channel-management/.brainstorming/ui-designer/analysis.md",
+        "priority": "high",
+        "usage": "Visual design: 任务卡片样式, 优先级色条, 分组视觉层次"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/WFS-channel-management/.brainstorming/product-manager/analysis.md",
+        "priority": "high",
+        "usage": "User Story 2.2-2.3: 销售查看和更新任务, 任务时间轴视图"
+      }
+    ]
+  },
+  "flow_control": {
+    "pre_analysis": [
+      {
+        "step": "load_ux_specifications",
+        "action": "Load UX and UI design specifications for task workbench",
+        "commands": [
+          "Read(.workflow/WFS-channel-management/.brainstorming/ux-expert/analysis.md)",
+          "Read(.workflow/WFS-channel-management/.brainstorming/ui-designer/analysis.md)"
+        ],
+        "output_to": "ux_ui_spec",
+        "on_error": "fail"
+      }
+    ],
+    "implementation_approach": [
+      {
+        "step": 1,
+        "title": "创建任务卡片组件TaskCard",
+        "description": "实现任务卡片UI: 左侧优先级色条, 中间任务信息(标题/分销商摘要/截止时间), 右侧操作按钮",
+        "modification_points": [
+          "创建1个文件: src/components/task-cards/TaskCard.tsx (约150行)",
+          "实现4个视觉元素: [左侧色条(width=4px, 根据priority设置color), 任务标题(font-size=16px, font-weight=600), 分销商摘要(灰色副标题), 状态徽章(Tag组件)]",
+          "实现3个操作按钮: [更新进度(打开UpdateProgressModal), 标记完成(确认对话框后调用API), 查看详情(打开TaskModal)]",
+          "实现逾期标识: 若task.is_overdue=true, 整个卡片背景色#ffe7e7, 显示逾期标签"
+        ],
+        "logic_flow": [
+          "从[ux_ui_spec]提取任务卡片设计规范",
+          "定义TaskCard组件Props: { task: Task, onUpdate: () => void, onComplete: () => void, onClick: () => void }",
+          "使用Ant Design Card组件作为容器, 添加hover效果(boxShadow变化)",
+          "渲染左侧色条: <div style={{ width: '4px', height: '100%', backgroundColor: getPriorityColor(task.priority) }} />",
+          "渲染任务信息区域: 标题(task.description), 分销商摘要(task.distributor.name + task.distributor.contact_person), 截止时间(dayjs格式化)",
+          "渲染状态徽章: <Tag color={getStatusColor(task.status)}>{getStatusText(task.status)}</Tag>",
+          "渲染操作按钮: 3个Button组件(size='small'), 根据task.status控制显示(completed状态隐藏'更新进度'和'标记完成')",
+          "实现getPriorityColor函数: { high: '#f5222d', medium: '#faad14', low: '#1890ff' }",
+          "实现逾期判断: task.is_overdue && <div style={{ backgroundColor: '#ffe7e7' }}><Tag color='red'>逾期{task.overdue_days}天</Tag></div>",
+          "编写5个单元测试覆盖4个视觉元素和3个操作按钮"
+        ],
+        "depends_on": [],
+        "output": "task_card_component"
+      },
+      {
+        "step": 2,
+        "title": "创建任务工作台主页TaskWorkbench",
+        "description": "实现工作台页面: 3个时间分组(今日/明日/本周), 支持折叠展开, 每个分组渲染TaskCard列表",
+        "modification_points": [
+          "创建1个文件: src/pages/tasks/TaskWorkbench.tsx (约350行)",
+          "实现3个分组渲染: [TodayGroup(今日任务, 默认展开), TomorrowGroup(明日任务, 默认折叠), ThisWeekGroup(本周任务, 默认折叠)]",
+          "实现分组状态管理: useState({ todayExpanded: true, tomorrowExpanded: false, weekExpanded: false })",
+          "实现折叠动画: 使用Ant Design Collapse组件或自定义CSS transition"
+        ],
+        "logic_flow": [
+          "从[ux_ui_spec]提取分组列表设计和折叠交互规范",
+          "使用useEffect钩子调用GET /api/tasks?user_id=current_user&date_range=week",
+          "根据task.deadline分组任务: todayTasks(deadline=today), tomorrowTasks(deadline=tomorrow), weekTasks(deadline<=7days && deadline>tomorrow)",
+          "渲染3个分组容器: 每个分组包含[标题行(分组名称+任务数+折叠图标), 任务卡片列表]",
+          "实现折叠交互: 点击标题行toggle展开状态, 使用Collapse组件实现动画效果",
+          "为每个分组设置视觉标识: 今日(红色标签), 明日(橙色标签), 本周(蓝色标签)",
+          "记住用户折叠偏好: localStorage.setItem('taskGroupsExpanded', JSON.stringify(expandedState))",
+          "实现空状态: 若某分组无任务, 显示<Empty description='暂无任务' />",
+          "集成UpdateProgressModal和TaskModal组件",
+          "编写8个单元测试覆盖3个分组渲染, 折叠交互, 空状态"
+        ],
+        "depends_on": [1],
+        "output": "task_workbench_component"
+      },
+      {
+        "step": 3,
+        "title": "创建任务详情弹窗TaskModal和更新进度表单",
+        "description": "实现TaskModal: 显示任务完整信息(分销商详情/任务描述/截止时间/协作人/评论历史), UpdateProgressModal: 更新进度和备注",
+        "modification_points": [
+          "创建1个文件: src/components/task-cards/TaskModal.tsx (约200行)",
+          "创建1个文件: src/components/task-cards/UpdateProgressModal.tsx (约120行)",
+          "实现6个信息展示区域: [任务基本信息, 分销商详情(可点击跳转), 进度条(Progress组件), 协作人列表, 附件列表, 评论时间轴]",
+          "实现3个操作: [添加评论(TextArea+提交按钮), 上传附件(Upload组件), 更新进度(打开UpdateProgressModal)]"
+        ],
+        "logic_flow": [
+          "从[synthesis_specification] EP-007提取任务协作功能需求",
+          "TaskModal使用Ant Design Modal组件(width=800px, 高度自适应)",
+          "使用useEffect根据taskId调用GET /api/tasks/:id获取完整任务详情",
+          "渲染任务基本信息: 描述, 优先级, 状态, 截止时间, 创建时间",
+          "渲染分销商详情卡片: 名称, 联系人, 电话, 地区, 点击跳转到/distributors/:id",
+          "渲染进度条: <Progress percent={task.progress} status={task.status === 'completed' ? 'success' : 'active'} />",
+          "渲染协作人列表: 主负责人(owner), 协作人(collaborators), 旁观者(observers), 使用Avatar.Group组件",
+          "渲染附件列表: 使用List组件, 支持下载(GET /api/tasks/:id/attachments/:attachmentId)",
+          "渲染评论时间轴: 使用Timeline组件, 显示用户头像+评论内容+时间, 底部有评论输入框(TextArea+提交按钮)",
+          "UpdateProgressModal: Form包含2个字段(progress: Slider 0-100%, notes: TextArea), 提交后调用PUT /api/tasks/:id",
+          "编写6个单元测试覆盖6个信息区域和3个操作功能"
+        ],
+        "depends_on": [2],
+        "output": "task_modal_and_progress_form"
+      }
+    ],
+    "target_files": [
+      "src/components/task-cards/TaskCard.tsx",
+      "src/pages/tasks/TaskWorkbench.tsx",
+      "src/components/task-cards/TaskModal.tsx",
+      "src/components/task-cards/UpdateProgressModal.tsx",
+      "src/pages/tasks/components/TodayGroup.tsx",
+      "src/pages/tasks/components/TomorrowGroup.tsx",
+      "src/pages/tasks/components/ThisWeekGroup.tsx",
+      "src/components/task-cards/TaskCard.test.tsx",
+      "src/pages/tasks/TaskWorkbench.test.tsx",
+      "src/components/task-cards/TaskModal.test.tsx"
+    ]
+  }
+}

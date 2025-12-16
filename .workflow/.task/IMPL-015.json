@@ -1,0 +1,310 @@
+{
+  "id": "IMPL-015",
+  "title": "集成测试与部署准备",
+  "status": "pending",
+  "meta": {
+    "type": "test",
+    "agent": "@code-developer",
+    "sprint": 3,
+    "priority": "high",
+    "estimated_hours": 12
+  },
+  "context": {
+    "requirements": [
+      "编写 10 个集成测试用例: 覆盖核心业务流程 (注册→登录→创建订单→审核→发货→完成→佣金)",
+      "配置 1 个 CI/CD 流水线: GitHub Actions 自动测试和构建",
+      "编写 3 个部署文档: [本地开发指南, 生产部署指南, API 文档]",
+      "创建 1 个健康检查端点: GET /health (详细检查数据库、Redis、文件系统)",
+      "生成 1 个 API 文档: 使用 Swagger/OpenAPI 自动生成"
+    ],
+    "focus_paths": [
+      "backend/tests/",
+      ".github/workflows/",
+      "docs/",
+      "docker-compose.prod.yml"
+    ],
+    "acceptance": [
+      "10 个集成测试通过: 验证 npm run test:integration 全部通过",
+      "CI/CD 流水线成功: 验证 GitHub Actions 自动运行测试和构建",
+      "部署文档完整: 验证可以按照文档成功部署",
+      "API 文档可访问: 验证 http://localhost:4000/api-docs 可以访问 Swagger UI",
+      "健康检查完整: 验证 /health 返回所有服务状态"
+    ],
+    "depends_on": ["IMPL-014"],
+    "artifacts": []
+  },
+  "flow_control": {
+    "pre_analysis": [],
+    "implementation_approach": [
+      {
+        "step": 1,
+        "title": "配置测试环境",
+        "description": "安装测试依赖和配置",
+        "modification_points": [
+          "安装 5 个测试依赖: [jest, supertest, @types/jest, @types/supertest, ts-jest]",
+          "创建 3 个配置文件: [jest.config.js, .env.test, backend/tests/setup.ts]"
+        ],
+        "logic_flow": [
+          "安装依赖: npm install -D jest supertest @types/jest @types/supertest ts-jest",
+          "jest.config.js: 配置 TypeScript 支持, 测试环境 node, 覆盖率报告",
+          ".env.test: 测试数据库 URL (使用独立测试数据库)",
+          "tests/setup.ts: 全局测试 setup (beforeAll 连接数据库, afterAll 清理)",
+          "package.json 添加 scripts: test, test:integration, test:coverage"
+        ],
+        "depends_on": [],
+        "output": "test_setup"
+      },
+      {
+        "step": 2,
+        "title": "编写集成测试用例",
+        "description": "测试核心业务流程",
+        "modification_points": [
+          "创建 10 个测试文件: [auth.test.ts, channel.test.ts, product.test.ts, pricing.test.ts, order.test.ts, commission.test.ts, inventory.test.ts, analytics.test.ts, permission.test.ts, workflow.test.ts]"
+        ],
+        "logic_flow": [
+          "auth.test.ts: 测试注册、登录、刷新 token、权限验证",
+          "channel.test.ts: 测试渠道 CRUD、树形查询、权限控制",
+          "product.test.ts: 测试产品 CRUD、批量导入、SKU 唯一性",
+          "pricing.test.ts: 测试定价规则、价格计算、多规则匹配",
+          "order.test.ts: 测试订单创建、状态流转、库存扣减",
+          "commission.test.ts: 测试佣金自动生成、结算",
+          "inventory.test.ts: 测试库存调整、预警、日志",
+          "analytics.test.ts: 测试分析 API、数据准确性",
+          "permission.test.ts: 测试 RBAC、权限检查",
+          "workflow.test.ts: 端到端测试 (注册→登录→创建订单→完成→佣金)",
+          "每个测试文件使用 describe 和 test 组织",
+          "使用 supertest 发送 HTTP 请求",
+          "使用 expect 断言响应"
+        ],
+        "depends_on": [1],
+        "output": "integration_tests"
+      },
+      {
+        "step": 3,
+        "title": "完善健康检查端点",
+        "description": "扩展 /health 检查所有依赖",
+        "modification_points": [
+          "修改 1 个文件: backend/src/controllers/health.controller.ts (扩展, +80 行)",
+          "检查 5 个服务: [应用状态, 数据库连接, Redis 连接, 文件系统, 外部 API (如果有)]"
+        ],
+        "logic_flow": [
+          "health check 逻辑:",
+          "1. 应用状态: {status: 'ok', uptime, version, environment}",
+          "2. 数据库检查: 执行 SELECT 1, 返回连接状态和响应时间",
+          "3. Redis 检查: redis.ping(), 返回状态和响应时间",
+          "4. 文件系统检查: 检查 uploads/ 目录可写",
+          "5. 综合状态: 所有服务 OK 则返回 200, 否则 503",
+          "响应格式: {status, timestamp, uptime, checks: {database, redis, filesystem}}"
+        ],
+        "depends_on": [],
+        "output": "health_check"
+      },
+      {
+        "step": 4,
+        "title": "集成 Swagger API 文档",
+        "description": "使用 swagger-jsdoc 和 swagger-ui-express",
+        "modification_points": [
+          "安装 3 个依赖: [swagger-jsdoc, swagger-ui-express, @types/swagger-ui-express]",
+          "创建 2 个文件: [backend/src/config/swagger.ts (配置, 60 行), backend/src/routes/*.route.ts (添加 JSDoc 注释)]"
+        ],
+        "logic_flow": [
+          "安装依赖: npm install swagger-jsdoc swagger-ui-express",
+          "swagger.ts: 配置 Swagger 定义",
+          "definition: {openapi: '3.0.0', info: {title, version, description}, servers: [{url: '/api/v1'}]}",
+          "apis: ['./src/routes/*.ts']",
+          "在路由文件添加 JSDoc 注释:",
+          "/**",
+          " * @swagger",
+          " * /channels:",
+          " *   get:",
+          " *     summary: 获取渠道列表",
+          " *     tags: [Channels]",
+          " *     parameters: [{name: tree, in: query, schema: {type: boolean}}]",
+          " *     responses: {200: {description: 成功}}",
+          " */",
+          "在 app.ts 注册 Swagger UI: app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))"
+        ],
+        "depends_on": [],
+        "output": "api_docs"
+      },
+      {
+        "step": 5,
+        "title": "配置 GitHub Actions CI/CD",
+        "description": "自动化测试和构建",
+        "modification_points": [
+          "创建 1 个文件: .github/workflows/ci.yml (100 行)",
+          "定义 3 个 jobs: [test (运行测试), build (构建镜像), deploy (可选)]"
+        ],
+        "logic_flow": [
+          "ci.yml 配置:",
+          "触发条件: push to main, pull_request",
+          "Job 1 - test:",
+          "1. Checkout 代码",
+          "2. Setup Node.js 20",
+          "3. 安装依赖 (npm ci)",
+          "4. 启动 PostgreSQL 和 Redis (services)",
+          "5. 运行数据库迁移 (npx prisma migrate deploy)",
+          "6. 运行测试 (npm run test:integration)",
+          "7. 上传覆盖率报告 (codecov)",
+          "Job 2 - build (depends on test):",
+          "1. Build Docker 镜像 (docker build)",
+          "2. 推送到 Docker Hub (可选)",
+          "Job 3 - deploy (manual trigger):",
+          "1. SSH 到生产服务器",
+          "2. 拉取最新镜像",
+          "3. 重启服务"
+        ],
+        "depends_on": [],
+        "output": "ci_cd_pipeline"
+      },
+      {
+        "step": 6,
+        "title": "创建生产环境 Docker Compose",
+        "description": "生产部署配置",
+        "modification_points": [
+          "创建 1 个文件: docker-compose.prod.yml (200 行)",
+          "配置生产优化: [资源限制, 日志驱动, 健康检查, 重启策略]"
+        ],
+        "logic_flow": [
+          "docker-compose.prod.yml:",
+          "服务配置:",
+          "backend: restart: always, healthcheck: {test: 'curl /health', interval: 30s}, resources: {limits: {cpus: '2', memory: '2G'}}",
+          "postgres: volumes: [生产数据卷], environment: [生产密码]",
+          "redis: command: [--requirepass ${REDIS_PASSWORD}]",
+          "nginx: 配置 SSL 证书, gzip 压缩, 反向代理",
+          "日志配置: driver: json-file, options: {max-size: '10m', max-file: '3'}"
+        ],
+        "depends_on": [],
+        "output": "prod_compose"
+      },
+      {
+        "step": 7,
+        "title": "编写部署文档",
+        "description": "创建完整部署指南",
+        "modification_points": [
+          "创建 4 个文档: [docs/DEVELOPMENT.md (开发指南, 150 行), docs/DEPLOYMENT.md (部署指南, 200 行), docs/API.md (API 文档索引), README.md (项目概览)]"
+        ],
+        "logic_flow": [
+          "DEVELOPMENT.md: 本地开发环境搭建",
+          "1. 环境要求 (Node.js 20, Docker)",
+          "2. 克隆项目",
+          "3. 安装依赖",
+          "4. 配置环境变量",
+          "5. 启动开发服务器",
+          "6. 运行测试",
+          "DEPLOYMENT.md: 生产部署指南",
+          "1. 服务器要求 (Linux, Docker, Docker Compose)",
+          "2. 配置域名和 SSL",
+          "3. 环境变量配置",
+          "4. 数据库初始化",
+          "5. 启动服务 (docker-compose -f docker-compose.prod.yml up -d)",
+          "6. 备份策略",
+          "7. 监控和日志",
+          "API.md: API 文档说明 (链接到 Swagger UI)",
+          "README.md: 项目介绍, 技术栈, 快速开始, 功能列表, 截图"
+        ],
+        "depends_on": [],
+        "output": "deployment_docs"
+      },
+      {
+        "step": 8,
+        "title": "创建数据库备份脚本",
+        "description": "自动化数据库备份",
+        "modification_points": [
+          "创建 2 个脚本: [scripts/backup-db.sh (备份脚本, 40 行), scripts/restore-db.sh (恢复脚本, 30 行)]"
+        ],
+        "logic_flow": [
+          "backup-db.sh:",
+          "1. 生成备份文件名 (backup-YYYYMMDD-HHMMSS.sql)",
+          "2. pg_dump 导出数据库",
+          "3. gzip 压缩",
+          "4. 上传到云存储 (可选)",
+          "5. 保留最近 7 天备份, 删除旧备份",
+          "restore-db.sh:",
+          "1. 解压备份文件",
+          "2. psql 导入数据",
+          "配置 cron job 每日自动备份: 0 2 * * * /path/to/backup-db.sh"
+        ],
+        "depends_on": [],
+        "output": "backup_scripts"
+      },
+      {
+        "step": 9,
+        "title": "生成演示数据",
+        "description": "创建完整的演示数据集",
+        "modification_points": [
+          "修改 1 个文件: backend/prisma/seed.ts (扩展, +200 行)",
+          "生成 1 个演示场景: 4 层渠道 + 50 个产品 + 100 个订单"
+        ],
+        "logic_flow": [
+          "扩展 seed.ts:",
+          "1. 创建 5 个用户 (1 SUPER_ADMIN, 4 不同角色)",
+          "2. 创建 4 层渠道树 (1 总代理, 3 区域, 10 一级, 20 二级)",
+          "3. 创建 50 个产品 (不同价格区间)",
+          "4. 创建 100 个定价规则 (覆盖所有层级)",
+          "5. 创建 100 个订单 (不同状态)",
+          "6. 创建 50 个佣金记录",
+          "7. 创建 200 个库存日志",
+          "运行: npm run seed"
+        ],
+        "depends_on": [],
+        "output": "demo_data"
+      },
+      {
+        "step": 10,
+        "title": "最终验收测试",
+        "description": "完整系统测试",
+        "modification_points": [
+          "执行 12 个验收测试: [环境搭建, 用户注册登录, 渠道管理, 产品管理, 定价策略, 订单流程, 库存管理, 佣金计算, 数据分析, 权限控制, 性能测试, 文档检查]"
+        ],
+        "logic_flow": [
+          "1. 环境搭建测试: 全新环境执行 docker-compose up -d, 验证所有服务启动",
+          "2. 集成测试: npm run test:integration, 验证 10 个测试全部通过",
+          "3. 用户流程测试: 注册新用户 → 登录 → 访问各页面",
+          "4. 渠道管理测试: 创建 4 层级渠道, 验证树形显示",
+          "5. 产品管理测试: 创建产品, 批量导入 Excel",
+          "6. 定价策略测试: 创建规则, 计算价格",
+          "7. 订单流程测试: 创建订单 → 审核 → 发货 → 完成, 验证库存扣减",
+          "8. 佣金计算测试: 验证订单完成后自动生成佣金",
+          "9. 数据分析测试: 访问 Dashboard, 验证所有图表显示",
+          "10. 权限控制测试: 以不同角色登录, 验证权限限制",
+          "11. 性能测试: ab -n 1000 -c 10 测试各端点, 验证 P95 < 200ms",
+          "12. 文档检查: 按照 DEPLOYMENT.md 部署到测试环境, 验证文档准确性",
+          "13. API 文档: 访问 /api-docs, 验证 Swagger UI 正常, 所有端点都有文档",
+          "14. 健康检查: curl /health, 验证返回所有服务状态",
+          "15. CI/CD: 提交代码到 GitHub, 验证 Actions 自动运行",
+          "生成验收报告"
+        ],
+        "depends_on": [2, 3, 4, 5, 6, 7, 8, 9],
+        "output": "acceptance_report"
+      }
+    ],
+    "target_files": [
+      "backend/jest.config.js",
+      "backend/.env.test",
+      "backend/tests/setup.ts",
+      "backend/tests/auth.test.ts",
+      "backend/tests/channel.test.ts",
+      "backend/tests/product.test.ts",
+      "backend/tests/pricing.test.ts",
+      "backend/tests/order.test.ts",
+      "backend/tests/commission.test.ts",
+      "backend/tests/inventory.test.ts",
+      "backend/tests/analytics.test.ts",
+      "backend/tests/permission.test.ts",
+      "backend/tests/workflow.test.ts",
+      "backend/src/controllers/health.controller.ts",
+      "backend/src/config/swagger.ts",
+      "backend/src/app.ts",
+      ".github/workflows/ci.yml",
+      "docker-compose.prod.yml",
+      "docs/DEVELOPMENT.md",
+      "docs/DEPLOYMENT.md",
+      "docs/API.md",
+      "README.md",
+      "scripts/backup-db.sh",
+      "scripts/restore-db.sh",
+      "backend/prisma/seed.ts"
+    ]
+  }
+}

@@ -1,0 +1,152 @@
+{
+  "id": "IMPL-001",
+  "title": "项目环境初始化和数据库设计",
+  "status": "pending",
+  "meta": {
+    "type": "feature",
+    "agent": "@code-developer"
+  },
+  "context": {
+    "requirements": [
+      "创建5个核心数据库表: [distributors(分销商), tasks(任务), users(用户), events(审计日志), dashboard_cache(看板缓存)]",
+      "实现12个扩展字段: [cooperation_level(合作等级), credit_limit(授信额度), historical_performance(历史业绩JSON), tags(标签数组), contact_person(联系人), phone(电话), address(地址), region(地区), owner_user_id(负责人ID), status(状态), created_at(创建时间), updated_at(更新时间)]",
+      "配置3个Docker服务: [PostgreSQL, Redis, Nginx]",
+      "初始化2个用户角色: [销售(sales), 领导(leader)] 权限矩阵"
+    ],
+    "focus_paths": ["database/migrations", "docker-compose.yml", "database/schema.sql"],
+    "acceptance": [
+      "5个数据库表创建成功: 验证 psql -c '\\dt' | wc -l = 5",
+      "12个扩展字段验证: 验证 distributors表包含所有字段 (psql -c '\\d distributors' | grep 'cooperation_level\\|credit_limit\\|historical_performance')",
+      "3个Docker容器运行: 验证 docker-compose ps | grep 'Up' | wc -l = 3",
+      "2个用户角色初始化: 验证 SELECT COUNT(*) FROM users WHERE role IN ('sales', 'leader') = 2"
+    ],
+    "depends_on": [],
+    "artifacts": [
+      {
+        "type": "synthesis_specification",
+        "path": ".workflow/WFS-channel-management/.brainstorming/guidance-specification.md",
+        "priority": "highest",
+        "usage": "Primary requirement source - consolidated decisions from all 5 roles"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/WFS-channel-management/.brainstorming/system-architect/analysis.md",
+        "priority": "high",
+        "usage": "Architecture decisions: Docker Compose, PostgreSQL, Redis caching strategy"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/WFS-channel-management/.brainstorming/data-architect/analysis.md",
+        "priority": "high",
+        "usage": "Data model specifications: distributor extended fields, event stream table design"
+      }
+    ]
+  },
+  "flow_control": {
+    "pre_analysis": [
+      {
+        "step": "load_synthesis_specification",
+        "action": "Load consolidated role analyses",
+        "commands": [
+          "Read(.workflow/WFS-channel-management/.brainstorming/guidance-specification.md)"
+        ],
+        "output_to": "synthesis_specification",
+        "on_error": "fail"
+      },
+      {
+        "step": "load_architecture_analysis",
+        "action": "Load system architecture specifications",
+        "commands": [
+          "Read(.workflow/WFS-channel-management/.brainstorming/system-architect/analysis.md)"
+        ],
+        "output_to": "architecture_spec",
+        "on_error": "fail"
+      },
+      {
+        "step": "load_data_architecture",
+        "action": "Load data model specifications",
+        "commands": [
+          "Read(.workflow/WFS-channel-management/.brainstorming/data-architect/analysis.md)"
+        ],
+        "output_to": "data_model_spec",
+        "on_error": "fail"
+      }
+    ],
+    "implementation_approach": [
+      {
+        "step": 1,
+        "title": "创建Docker Compose配置",
+        "description": "配置3个服务容器: PostgreSQL(数据库), Redis(缓存), Nginx(反向代理)",
+        "modification_points": [
+          "创建1个文件: docker-compose.yml (约150行)",
+          "配置PostgreSQL: 版本16, 端口5432, 数据卷挂载, 初始化脚本",
+          "配置Redis: 版本7, 端口6379, 最大内存512MB, 持久化策略AOF",
+          "配置Nginx: 版本1.25, 端口80/443, 反向代理配置, 静态资源优化"
+        ],
+        "logic_flow": [
+          "从[synthesis_specification]提取部署方案决策: Docker Compose单机部署",
+          "从[architecture_spec]提取技术栈配置参数",
+          "编写docker-compose.yml定义3个服务",
+          "配置服务间网络和数据卷",
+          "验证配置有效性: docker-compose config"
+        ],
+        "depends_on": [],
+        "output": "docker_compose_config"
+      },
+      {
+        "step": 2,
+        "title": "设计数据库表结构",
+        "description": "创建5个核心表: distributors(分销商12字段), tasks(任务8字段), users(用户6字段), events(审计日志6字段), dashboard_cache(看板缓存5字段)",
+        "modification_points": [
+          "创建1个文件: database/schema.sql (约300行)",
+          "定义distributors表: 12个字段 (id, name, contact_person, phone, address, region, cooperation_level, credit_limit, historical_performance, tags, owner_user_id, status, created_at, updated_at)",
+          "定义tasks表: 8个字段 (id, distributor_id, assigned_to, description, priority, deadline, status, created_at)",
+          "定义users表: 6个字段 (id, username, password_hash, role, email, created_at)",
+          "定义events表: 6个字段 (id, event_type, entity_type, entity_id, user_id, payload, timestamp)",
+          "定义dashboard_cache表: 5个字段 (id, metric_key, metric_value, updated_at, ttl)",
+          "创建10个索引: [distributors.owner_user_id, distributors.region, distributors.cooperation_level, tasks.assigned_to, tasks.deadline, tasks.status, events.event_type, events.timestamp, dashboard_cache.metric_key, users.role]"
+        ],
+        "logic_flow": [
+          "从[data_model_spec]提取扩展字段模型规范",
+          "从[synthesis_specification]提取整合点: 事件流审计日志、权限隔离设计",
+          "编写CREATE TABLE语句 (5个表)",
+          "添加字段约束: NOT NULL, UNIQUE, CHECK, DEFAULT",
+          "创建外键关系: tasks.distributor_id -> distributors.id, tasks.assigned_to -> users.id",
+          "定义10个索引优化查询性能",
+          "编写初始化数据SQL: 插入2个测试用户(sales, leader角色)"
+        ],
+        "depends_on": [],
+        "output": "database_schema"
+      },
+      {
+        "step": 3,
+        "title": "执行数据库迁移和初始化",
+        "description": "运行migration脚本创建5个表, 插入2个初始用户, 验证12个扩展字段",
+        "modification_points": [
+          "创建1个文件: database/migrations/001_initial_schema.sql (复制schema.sql内容)",
+          "创建1个文件: database/seed_data.sql (约50行, 插入测试数据)",
+          "执行迁移命令: docker-compose exec postgres psql -U admin -d channel_db -f /migrations/001_initial_schema.sql",
+          "执行数据初始化: docker-compose exec postgres psql -U admin -d channel_db -f /seed_data.sql"
+        ],
+        "logic_flow": [
+          "启动Docker容器: docker-compose up -d",
+          "等待PostgreSQL就绪 (健康检查30秒超时)",
+          "执行schema.sql创建5个表",
+          "执行seed_data.sql插入初始数据 (2个用户: sales@example.com, leader@example.com)",
+          "验证表创建: \\dt 查看5个表",
+          "验证字段: \\d distributors 验证12个字段存在",
+          "验证索引: \\di 查看10个索引",
+          "验证用户数据: SELECT * FROM users WHERE role IN ('sales', 'leader') 返回2条记录"
+        ],
+        "depends_on": [1, 2],
+        "output": "initialized_database"
+      }
+    ],
+    "target_files": [
+      "docker-compose.yml",
+      "database/schema.sql",
+      "database/migrations/001_initial_schema.sql",
+      "database/seed_data.sql"
+    ]
+  }
+}

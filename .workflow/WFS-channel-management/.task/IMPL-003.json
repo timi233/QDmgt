@@ -1,0 +1,162 @@
+{
+  "id": "IMPL-003",
+  "title": "前端UI - 分销商分步表单和列表页",
+  "status": "pending",
+  "meta": {
+    "type": "feature",
+    "agent": "@code-developer"
+  },
+  "context": {
+    "requirements": [
+      "创建3个React组件: [DistributorForm(分步表单, 300行), DistributorList(列表页, 250行), DistributorDetail(详情页, 200行)]",
+      "实现3步表单流程: [第1步(基础信息3字段), 第2步(联系和合作5字段), 第3步(历史业绩2字段可选)]",
+      "集成5个Ant Design组件: [Steps(步骤条), Form(表单), Table(列表), Select(下拉), DatePicker(日期)]",
+      "实现4个前端验证规则: [名称必填2-50字符, 电话格式验证, 合作等级必选, 授信额度正数]"
+    ],
+    "focus_paths": ["src/pages/distributors", "src/components/forms"],
+    "acceptance": [
+      "3个组件渲染成功: 验证 npm test -- DistributorForm.test.tsx 所有测试通过",
+      "3步表单提交流程: 验证 用户完成前2步点击保存后API调用成功(POST /api/distributors), 跳转到详情页",
+      "4个前端验证规则: 验证 提交无效数据时显示红色错误提示, 阻止提交",
+      "移动端响应式: 验证 在375px宽度下表单布局自适应, 无横向滚动"
+    ],
+    "depends_on": ["IMPL-002"],
+    "artifacts": [
+      {
+        "type": "synthesis_specification",
+        "path": ".workflow/WFS-channel-management/.brainstorming/guidance-specification.md",
+        "priority": "highest",
+        "usage": "UX设计决策: 分步表单字段分布, 表单验证规则 (EP-002)"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/WFS-channel-management/.brainstorming/ux-expert/analysis.md",
+        "priority": "high",
+        "usage": "UX specifications: 分步表单交互设计, 列表页筛选和排序"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/WFS-channel-management/.brainstorming/ui-designer/analysis.md",
+        "priority": "high",
+        "usage": "Visual design: 步骤条样式, 表单布局, 清爽简约配色"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/WFS-channel-management/.brainstorming/product-manager/analysis.md",
+        "priority": "high",
+        "usage": "User Story 1.1-1.2: 分销商录入和查询功能需求"
+      }
+    ]
+  },
+  "flow_control": {
+    "pre_analysis": [
+      {
+        "step": "load_ux_specifications",
+        "action": "Load UX and UI design specifications",
+        "commands": [
+          "Read(.workflow/WFS-channel-management/.brainstorming/ux-expert/analysis.md)",
+          "Read(.workflow/WFS-channel-management/.brainstorming/ui-designer/analysis.md)"
+        ],
+        "output_to": "ux_ui_spec",
+        "on_error": "fail"
+      },
+      {
+        "step": "load_product_requirements",
+        "action": "Load product manager user stories",
+        "commands": [
+          "Read(.workflow/WFS-channel-management/.brainstorming/product-manager/analysis.md)"
+        ],
+        "output_to": "product_spec",
+        "on_error": "fail"
+      }
+    ],
+    "implementation_approach": [
+      {
+        "step": 1,
+        "title": "创建分步表单组件DistributorForm",
+        "description": "实现3步表单: 第1步(名称+地址+合作等级), 第2步(联系人+电话+授信+标签), 第3步(历史业绩+备注)",
+        "modification_points": [
+          "创建1个文件: src/pages/distributors/DistributorForm.tsx (约300行)",
+          "实现3个步骤组件: [BasicInfoStep(第1步), ContactInfoStep(第2步), PerformanceStep(第3步)]",
+          "集成Ant Design Steps组件: 顶部横向步骤条, 3个步骤(已完成/当前/未完成状态)",
+          "实现表单状态管理: useState管理currentStep和formData, useForm管理表单验证",
+          "实现4个验证规则: [name.required.length(2-50), phone.pattern(/^1[3-9]\\d{9}$/), cooperation_level.required.enum(['A','B','C']), credit_limit.min(0)]",
+          "实现导航逻辑: 下一步(验证通过后currentStep+1), 上一步(currentStep-1), 保存(提交API)"
+        ],
+        "logic_flow": [
+          "从[ux_ui_spec]提取分步表单设计: 3步字段分布, 横向步骤条样式",
+          "从[product_spec] User Story 1.1提取验收标准: 前2步完成即可保存, 第3步可跳过",
+          "使用Ant Design Form和Steps组件初始化表单结构",
+          "第1步渲染3个字段: Input(名称), Input(地址), Select(合作等级A/B/C)",
+          "第2步渲染5个字段: Input(联系人), Input(电话), InputNumber(授信额度), Select(标签, mode='tags')",
+          "第3步渲染2个可选字段: TextArea(历史业绩JSON), TextArea(备注)",
+          "实现handleNext: 验证当前步骤字段, 通过后setCurrentStep(prev => prev + 1)",
+          "实现handlePrev: setCurrentStep(prev => prev - 1)",
+          "实现handleSubmit: 调用POST /api/distributors, 成功后navigate('/distributors/:id')",
+          "编写8个单元测试覆盖3步导航和4个验证规则"
+        ],
+        "depends_on": [],
+        "output": "distributor_form_component"
+      },
+      {
+        "step": 2,
+        "title": "创建分销商列表页DistributorList",
+        "description": "实现列表页: Ant Design Table组件, 支持筛选(地区/等级/状态), 排序, 分页, 点击行跳转详情",
+        "modification_points": [
+          "创建1个文件: src/pages/distributors/DistributorList.tsx (约250行)",
+          "集成Ant Design Table组件: 定义8个列[名称, 联系人, 地区, 合作等级, 状态, 负责销售, 创建时间, 操作]",
+          "实现3个筛选器: [Select(地区), Select(合作等级), Select(状态active/deleted)]",
+          "实现分页: pageSize=20, 支持切换页码, 显示总数",
+          "实现权限过滤: 销售角色自动添加owner_user_id=current_user查询参数"
+        ],
+        "logic_flow": [
+          "从[ux_ui_spec]提取列表页设计: 表格布局, 筛选器位置, 排序交互",
+          "从[product_spec] User Story 1.2提取需求: 查看我负责的分销商, 支持筛选排序",
+          "使用useEffect钩子调用GET /api/distributors?page=1&limit=20",
+          "根据localStorage.getItem('user').role判断权限: sales角色自动添加owner_user_id参数",
+          "定义Table columns配置: 8个列, 设置sorter(按创建时间/合作等级排序)",
+          "实现筛选器onChange: 更新查询参数, 重新调用API",
+          "实现onRow点击: navigate(`/distributors/${record.id}`)",
+          "实现操作列: 编辑按钮(navigate to edit), 删除按钮(仅leader可见, 调用DELETE API)",
+          "编写5个单元测试覆盖列表渲染, 筛选, 排序, 分页, 权限过滤"
+        ],
+        "depends_on": [1],
+        "output": "distributor_list_component"
+      },
+      {
+        "step": 3,
+        "title": "创建分销商详情页DistributorDetail",
+        "description": "实现详情页: 显示12个字段信息, 编辑按钮(跳转编辑表单), 创建任务按钮(打开任务表单)",
+        "modification_points": [
+          "创建1个文件: src/pages/distributors/DistributorDetail.tsx (约200行)",
+          "使用Ant Design Descriptions组件展示12个字段",
+          "实现2个操作按钮: [编辑(navigate to /distributors/:id/edit), 创建任务(打开Modal)]",
+          "实现权限验证: 非owner且非leader显示403错误页面"
+        ],
+        "logic_flow": [
+          "从[product_spec] User Story 2.1提取需求: 详情页内创建任务按钮",
+          "使用useParams获取id, useEffect调用GET /api/distributors/:id",
+          "判断权限: 若API返回403, 显示<Alert>无权限查看</Alert>",
+          "使用Descriptions组件展示12个字段(3列布局): 名称, 联系人, 电话, 地址, 地区, 合作等级, 授信额度, 标签, 历史业绩, 状态, 负责销售, 创建时间",
+          "右上角渲染2个按钮: <Button onClick={() => navigate(`/distributors/${id}/edit`)}>编辑</Button>, <Button onClick={() => setTaskModalVisible(true)}>创建任务</Button>(仅leader可见)",
+          "实现TaskModal组件: 任务表单(描述, 分配给, 截止时间, 优先级), 提交后调用POST /api/tasks",
+          "编写3个单元测试覆盖详情渲染, 权限验证, 按钮交互"
+        ],
+        "depends_on": [2],
+        "output": "distributor_detail_component"
+      }
+    ],
+    "target_files": [
+      "src/pages/distributors/DistributorForm.tsx",
+      "src/pages/distributors/DistributorList.tsx",
+      "src/pages/distributors/DistributorDetail.tsx",
+      "src/pages/distributors/components/BasicInfoStep.tsx",
+      "src/pages/distributors/components/ContactInfoStep.tsx",
+      "src/pages/distributors/components/PerformanceStep.tsx",
+      "src/pages/distributors/components/TaskModal.tsx",
+      "src/pages/distributors/DistributorForm.test.tsx",
+      "src/pages/distributors/DistributorList.test.tsx",
+      "src/pages/distributors/DistributorDetail.test.tsx"
+    ]
+  }
+}

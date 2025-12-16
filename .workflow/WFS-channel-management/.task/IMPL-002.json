@@ -1,0 +1,151 @@
+{
+  "id": "IMPL-002",
+  "title": "后端API开发 - 分销商管理模块",
+  "status": "pending",
+  "meta": {
+    "type": "feature",
+    "agent": "@code-developer"
+  },
+  "context": {
+    "requirements": [
+      "实现5个REST API端点: [POST /api/distributors(创建), GET /api/distributors(列表查询), GET /api/distributors/:id(详情), PUT /api/distributors/:id(更新), DELETE /api/distributors/:id(软删除)]",
+      "创建4个后端文件: [distributors.controller.ts(180行), distributors.service.ts(220行), distributors.repository.ts(150行), distributors.types.ts(80行)]",
+      "实现3个权限过滤规则: [销售只能查看owner_user_id=自己的记录, 领导可查看所有记录, 更新和删除需验证所有权]",
+      "集成7个表单验证规则: [名称2-50字符, 电话号码格式, 合作等级枚举(A/B/C), 授信额度正数, 地区非空, 标签数组最多10个, 历史业绩JSON格式]"
+    ],
+    "focus_paths": ["src/modules/distributors", "src/common/guards"],
+    "acceptance": [
+      "5个API端点测试通过: 验证 npm test -- distributors.controller.spec.ts 所有测试通过",
+      "3个权限规则验证: 验证 销售用户调用GET /api/distributors返回仅自己的记录(WHERE owner_user_id=user_id)",
+      "7个验证规则测试: 验证 POST /api/distributors 提交无效数据返回422错误和明确错误信息",
+      "代码覆盖率≥80%: 验证 npm test -- --coverage | grep distributors | grep -E '80|9[0-9]|100'"
+    ],
+    "depends_on": ["IMPL-001"],
+    "artifacts": [
+      {
+        "type": "synthesis_specification",
+        "path": ".workflow/WFS-channel-management/.brainstorming/guidance-specification.md",
+        "priority": "highest",
+        "usage": "API契约规范 (EP-001), 表单验证规则 (EP-002), 权限模型 (EP-003)"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/WFS-channel-management/.brainstorming/data-architect/analysis.md",
+        "priority": "high",
+        "usage": "Data model specifications: 扩展字段验证规则, 应用层权限过滤实现"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/WFS-channel-management/.brainstorming/product-manager/analysis.md",
+        "priority": "high",
+        "usage": "User Story 1.1-1.3: 分销商CRUD功能需求和验收标准"
+      }
+    ]
+  },
+  "flow_control": {
+    "pre_analysis": [
+      {
+        "step": "load_synthesis_specification",
+        "action": "Load consolidated role analyses and enhancement recommendations",
+        "commands": [
+          "Read(.workflow/WFS-channel-management/.brainstorming/guidance-specification.md)",
+          "Read(.workflow/WFS-channel-management/.brainstorming/enhancement-recommendations.json)"
+        ],
+        "output_to": "synthesis_specification",
+        "on_error": "fail"
+      },
+      {
+        "step": "load_product_requirements",
+        "action": "Load product manager user stories",
+        "commands": [
+          "Read(.workflow/WFS-channel-management/.brainstorming/product-manager/analysis.md)"
+        ],
+        "output_to": "product_spec",
+        "on_error": "fail"
+      }
+    ],
+    "implementation_approach": [
+      {
+        "step": 1,
+        "title": "实现分销商Controller层",
+        "description": "创建distributors.controller.ts实现5个REST端点, 集成权限守卫和请求验证",
+        "modification_points": [
+          "创建1个文件: src/modules/distributors/distributors.controller.ts (约180行)",
+          "实现5个端点方法: [create(POST), findAll(GET), findOne(GET :id), update(PUT :id), remove(DELETE :id)]",
+          "应用2个装饰器: [@UseGuards(JwtAuthGuard, RoleGuard), @UsePipes(ValidationPipe)]",
+          "定义6个DTO类: [CreateDistributorDto, UpdateDistributorDto, DistributorQueryDto, DistributorResponseDto, DistributorListResponseDto, ErrorResponseDto]"
+        ],
+        "logic_flow": [
+          "从[product_spec] User Story 1.1-1.3提取API需求",
+          "从[synthesis_specification] EP-001提取API契约规范",
+          "定义Controller类和路由装饰器 @Controller('api/distributors')",
+          "实现create方法: 接收CreateDistributorDto, 调用service.create(), 返回201+新记录",
+          "实现findAll方法: 提取query参数(page, limit, filters), 调用service.findAll(), 应用权限过滤WHERE owner_user_id=current_user",
+          "实现findOne方法: 接收id参数, 验证权限, 调用service.findOne(), 返回200+详情或404",
+          "实现update方法: 接收id和UpdateDistributorDto, 验证所有权, 调用service.update(), 记录事件流",
+          "实现remove方法: 接收id, 验证领导角色, 调用service.softDelete(), 记录事件流",
+          "编写10个单元测试覆盖5个端点的正常和异常场景"
+        ],
+        "depends_on": [],
+        "output": "distributors_controller"
+      },
+      {
+        "step": 2,
+        "title": "实现分销商Service业务逻辑层",
+        "description": "创建distributors.service.ts实现业务逻辑, 调用repository, 记录事件流",
+        "modification_points": [
+          "创建1个文件: src/modules/distributors/distributors.service.ts (约220行)",
+          "实现5个业务方法: [create, findAll, findOne, update, softDelete]",
+          "集成事件流记录: 每个CUD操作调用eventsService.logEvent()",
+          "实现权限过滤逻辑: 根据user.role动态构建WHERE条件"
+        ],
+        "logic_flow": [
+          "从[synthesis_specification]提取事件流审计需求",
+          "定义Service类, 注入distributorsRepository和eventsService",
+          "实现create方法: 验证数据, 设置owner_user_id=current_user_id, 调用repository.create(), 记录'distributor_created'事件",
+          "实现findAll方法: 构建查询条件(role=sales时添加owner_user_id过滤), 调用repository.find(), 返回分页结果",
+          "实现findOne方法: 验证权限(非owner且非leader返回403), 调用repository.findOne(), 返回详情或抛出NotFoundException",
+          "实现update方法: 验证所有权, 调用repository.update(), 记录'distributor_updated'事件",
+          "实现softDelete方法: 验证leader角色, 设置status='deleted', 记录'distributor_deleted'事件",
+          "编写15个单元测试覆盖业务逻辑和边界情况"
+        ],
+        "depends_on": [1],
+        "output": "distributors_service"
+      },
+      {
+        "step": 3,
+        "title": "实现分销商Repository数据访问层和验证",
+        "description": "创建distributors.repository.ts和distributors.types.ts, 定义数据模型和验证规则",
+        "modification_points": [
+          "创建1个文件: src/modules/distributors/distributors.repository.ts (约150行)",
+          "创建1个文件: src/modules/distributors/distributors.types.ts (约80行)",
+          "定义7个class-validator装饰器: [@IsString(), @Length(2,50), @IsPhoneNumber(), @IsEnum(CooperationLevel), @IsPositive(), @IsArray(), @IsJSON()]",
+          "实现5个repository方法: [create, find, findOne, update, delete] 使用TypeORM"
+        ],
+        "logic_flow": [
+          "从[synthesis_specification] EP-002提取表单验证规则",
+          "在distributors.types.ts定义Distributor实体类(12个字段), 应用@Entity()装饰器",
+          "在CreateDistributorDto定义验证规则: name(2-50字符), phone(国际格式), cooperation_level(A/B/C枚举), credit_limit(正数), tags(数组最多10个)",
+          "在distributors.repository.ts实现CRUD方法, 使用TypeORM QueryBuilder",
+          "实现复杂查询: findAll支持筛选(region, cooperation_level, status)和排序",
+          "实现软删除逻辑: update status='deleted' 而非物理删除",
+          "编写8个集成测试验证7个验证规则和数据持久化"
+        ],
+        "depends_on": [2],
+        "output": "distributors_repository_and_types"
+      }
+    ],
+    "target_files": [
+      "src/modules/distributors/distributors.controller.ts",
+      "src/modules/distributors/distributors.service.ts",
+      "src/modules/distributors/distributors.repository.ts",
+      "src/modules/distributors/distributors.types.ts",
+      "src/modules/distributors/dto/create-distributor.dto.ts",
+      "src/modules/distributors/dto/update-distributor.dto.ts",
+      "src/modules/distributors/dto/distributor-response.dto.ts",
+      "src/modules/distributors/distributors.controller.spec.ts",
+      "src/modules/distributors/distributors.service.spec.ts",
+      "src/modules/distributors/distributors.repository.spec.ts"
+    ]
+  }
+}

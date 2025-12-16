@@ -1,0 +1,68 @@
+{
+  "id": "IMPL-data-001",
+  "title": "数据聚合与缓存层实现",
+  "status": "completed",
+  "priority": "medium",
+  "meta": {
+    "type": "feature",
+    "agent": "@code-developer"
+  },
+  "context": {
+    "requirements": [
+      "后台定时任务(Cron Job每分钟聚合)",
+      "Redis缓存策略(TTL 5分钟)",
+      "事件流审计日志",
+      "Excel导入导出功能"
+    ],
+    "focus_paths": [
+      "backend/src/utils/redis.ts",
+      "backend/src/services/aggregationService.ts",
+      "backend/src/services/eventService.ts",
+      "backend/src/services/excelService.ts",
+      "backend/src/controllers/dataController.ts",
+      "backend/src/routes/dataRoutes.ts"
+    ],
+    "acceptance": [
+      "定时任务每分钟聚合数据到Redis",
+      "Redis缓存TTL为5分钟",
+      "事件流记录所有关键操作",
+      "Excel导入导出功能正常工作"
+    ],
+    "depends_on": ["IMPL-task-001"]
+  },
+  "flow_control": {
+    "implementation_approach": [
+      {
+        "step": 1,
+        "title": "创建Redis工具",
+        "description": "创建Redis客户端连接和缓存操作工具"
+      },
+      {
+        "step": 2,
+        "title": "创建数据聚合服务",
+        "description": "实现KPI、区域统计、合作等级统计、任务统计的聚合逻辑"
+      },
+      {
+        "step": 3,
+        "title": "创建事件审计服务",
+        "description": "实现事件类型定义和审计日志记录功能"
+      },
+      {
+        "step": 4,
+        "title": "创建Excel导入导出服务",
+        "description": "实现分销商数据的导入导出功能"
+      },
+      {
+        "step": 5,
+        "title": "更新定时任务调度器",
+        "description": "添加每分钟数据聚合的cron任务"
+      },
+      {
+        "step": 6,
+        "title": "创建API路由和控制器",
+        "description": "创建数据聚合、导入导出、审计事件的API端点"
+      }
+    ]
+  },
+  "completedAt": "2025-11-23T00:00:00.000Z"
+}

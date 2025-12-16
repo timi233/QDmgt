@@ -1,0 +1,144 @@
+{
+  "id": "IMPL-008",
+  "title": "用户认证和权限控制系统",
+  "status": "pending",
+  "meta": {
+    "type": "feature",
+    "agent": "@code-developer"
+  },
+  "context": {
+    "requirements": [
+      "实现4个认证API端点: [POST /api/auth/login(登录), POST /api/auth/logout(登出), GET /api/auth/me(获取当前用户), POST /api/auth/refresh(刷新Token)]",
+      "实现2个角色权限: [销售角色(sales): 查看/编辑自己负责的分销商和任务, 领导角色(leader): 查看所有数据+创建/分配/删除任务]",
+      "创建5个后端文件: [auth.controller.ts(150行), auth.service.ts(200行), jwt-auth.guard.ts(80行), role.guard.ts(100行), auth.types.ts(60行)]",
+      "实现3个前端Guard组件: [AuthGuard(路由守卫), RoleBasedRoute(角色路由), PermissionButton(权限按钮)]"
+    ],
+    "focus_paths": ["src/modules/auth", "src/common/guards", "src/components/auth"],
+    "acceptance": [
+      "4个认证API测试通过: 验证 npm test -- auth.controller.spec.ts 所有测试通过",
+      "2个角色权限验证: 验证 销售用户登录后调用GET /api/distributors仅返回owner_user_id=自己的记录, 调用DELETE /api/distributors/:id返回403",
+      "JWT Token机制: 验证 登录成功返回access_token和refresh_token, access_token有效期15分钟, refresh_token有效期7天",
+      "前端路由守卫: 验证 未登录访问/dashboard自动跳转到/login, 销售角色访问/dashboard(仅leader可见)返回403页面"
+    ],
+    "depends_on": ["IMPL-001"],
+    "artifacts": [
+      {
+        "type": "synthesis_specification",
+        "path": ".workflow/WFS-channel-management/.brainstorming/guidance-specification.md",
+        "priority": "highest",
+        "usage": "权限设计决策, EP-003权限模型详细规范"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/WFS-channel-management/.brainstorming/system-architect/analysis.md",
+        "priority": "high",
+        "usage": "Architecture: JWT认证方案, 权限中间件设计"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/WFS-channel-management/.brainstorming/data-architect/analysis.md",
+        "priority": "high",
+        "usage": "Data model: 用户表设计, 角色枚举定义"
+      }
+    ]
+  },
+  "flow_control": {
+    "pre_analysis": [
+      {
+        "step": "load_ep003_specifications",
+        "action": "Load EP-003 permission model specifications",
+        "commands": [
+          "Read(.workflow/WFS-channel-management/.brainstorming/enhancement-recommendations.json)"
+        ],
+        "output_to": "ep003_spec",
+        "on_error": "fail"
+      }
+    ],
+    "implementation_approach": [
+      {
+        "step": 1,
+        "title": "实现JWT认证Controller和Service",
+        "description": "创建auth.controller.ts和auth.service.ts实现登录/登出/刷新Token逻辑",
+        "modification_points": [
+          "创建2个文件: [src/modules/auth/auth.controller.ts(150行), src/modules/auth/auth.service.ts(200行)]",
+          "实现4个认证端点: [login(接收username+password, 返回JWT tokens), logout(清除refresh token), me(返回当前用户信息), refresh(使用refresh token换取新access token)]",
+          "集成bcrypt密码哈希: 登录时验证bcrypt.compare(password, user.password_hash)",
+          "集成jsonwebtoken库: 生成access_token(15分钟过期), refresh_token(7天过期)"
+        ],
+        "logic_flow": [
+          "从[ep003_spec]提取权限模型规范",
+          "auth.controller.ts定义Controller类 @Controller('api/auth')",
+          "实现login端点: POST /api/auth/login, 接收LoginDto{username, password}, 调用authService.validateUser()验证用户, 验证成功后调用authService.generateTokens(user), 返回{access_token, refresh_token, user:{id, username, role, email}}",
+          "实现logout端点: POST /api/auth/logout, 接收refresh_token, 调用authService.revokeRefreshToken()将token加入黑名单(Redis存储), 返回{message: 'Logged out'}",
+          "实现me端点: GET /api/auth/me, 使用@UseGuards(JwtAuthGuard)保护, 从request.user获取当前用户信息, 返回用户对象",
+          "实现refresh端点: POST /api/auth/refresh, 接收RefreshDto{refresh_token}, 验证token有效性和未过期, 生成新access_token, 返回{access_token}",
+          "auth.service.ts实现validateUser方法: 查询users表WHERE username={username}, 验证bcrypt.compare(password, user.password_hash), 验证通过返回user对象(不含password_hash), 否则抛出UnauthorizedException",
+          "实现generateTokens方法: 使用jwt.sign()生成2个token, payload={sub: user.id, username: user.username, role: user.role}, access_token过期15分钟, refresh_token过期7天, 将refresh_token存入Redis(key=refresh:{token}, value=user.id, TTL=7天)",
+          "实现revokeRefreshToken方法: 将token加入黑名单Redis(key=blacklist:{token}, TTL=7天), 删除Redis中的refresh:{token}",
+          "编写10个单元测试覆盖4个端点, 密码验证, Token生成和刷新"
+        ],
+        "depends_on": [],
+        "output": "auth_controller_and_service"
+      },
+      {
+        "step": 2,
+        "title": "实现JWT和角色守卫Guard",
+        "description": "创建jwt-auth.guard.ts和role.guard.ts实现JWT验证和角色权限检查",
+        "modification_points": [
+          "创建2个文件: [src/common/guards/jwt-auth.guard.ts(80行), src/common/guards/role.guard.ts(100行)]",
+          "实现JWT守卫: 从请求头提取Authorization: Bearer {token}, 验证token有效性, 解码payload并附加到request.user",
+          "实现角色守卫: 从request.user提取role, 检查是否匹配@Roles()装饰器指定的角色, 不匹配抛出ForbiddenException"
+        ],
+        "logic_flow": [
+          "jwt-auth.guard.ts继承PassportStrategy(Strategy), 使用passport-jwt库",
+          "定义constructor: super({jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(), secretOrKey: process.env.JWT_SECRET})",
+          "实现validate方法: 接收payload, 检查token是否在黑名单(Redis.exists(`blacklist:{token}`)), 若在黑名单则抛出UnauthorizedException, 否则返回{id: payload.sub, username: payload.username, role: payload.role}",
+          "role.guard.ts实现CanActivate接口",
+          "实现canActivate方法: 从ExecutionContext获取request.user, 从Reflector获取@Roles()装饰器指定的required roles, 若user.role in required roles则返回true, 否则抛出ForbiddenException('Insufficient permissions')",
+          "创建@Roles()装饰器: export const Roles = (...roles: string[]) => SetMetadata('roles', roles)",
+          "使用示例: @UseGuards(JwtAuthGuard, RoleGuard) @Roles('leader') @Delete('/api/tasks/:id')",
+          "编写8个单元测试覆盖JWT验证, 黑名单检查, 角色权限检查, 异常抛出"
+        ],
+        "depends_on": [1],
+        "output": "jwt_and_role_guards"
+      },
+      {
+        "step": 3,
+        "title": "实现前端认证Guard和权限组件",
+        "description": "创建AuthGuard路由守卫, RoleBasedRoute角色路由, PermissionButton权限按钮",
+        "modification_points": [
+          "创建3个文件: [src/components/auth/AuthGuard.tsx(100行), src/components/auth/RoleBasedRoute.tsx(80行), src/components/auth/PermissionButton.tsx(60行)]",
+          "集成React Router路由守卫: 在App.tsx中包裹需要认证的路由",
+          "实现localStorage存储Token: 登录成功后存储access_token和refresh_token, 登出时清除"
+        ],
+        "logic_flow": [
+          "AuthGuard组件: 使用useEffect检查localStorage.getItem('access_token'), 若不存在则navigate('/login'), 若存在则调用GET /api/auth/me验证token有效性, 失败则清除token并navigate('/login')",
+          "RoleBasedRoute组件: Props{allowedRoles: string[], children}, 从localStorage解析JWT token获取role, 若role in allowedRoles则渲染children, 否则渲染<Result status='403' title='权限不足' />",
+          "PermissionButton组件: Props{requiredRole: string, onClick, children}, 从token获取role, 若role匹配则渲染Button可点击, 否则渲染disabled Button并显示tooltip'仅{requiredRole}可操作'",
+          "在App.tsx中使用: <Route path='/dashboard' element={<AuthGuard><RoleBasedRoute allowedRoles={['leader']}><DashboardPage /></RoleBasedRoute></AuthGuard>} />",
+          "实现Token自动刷新: 使用axios interceptor, 若API返回401且error.code='TOKEN_EXPIRED', 自动调用POST /api/auth/refresh换取新token, 重试原请求",
+          "实现登录页面: <Form onSubmit={handleLogin}><Input name='username' /><Input.Password name='password' /><Button type='primary' htmlType='submit'>登录</Button></Form>, handleLogin调用POST /api/auth/login, 成功后localStorage.setItem('access_token', response.access_token), navigate('/dashboard')",
+          "编写8个单元测试覆盖路由守卫, 角色路由, 权限按钮, Token刷新"
+        ],
+        "depends_on": [2],
+        "output": "frontend_auth_guards_and_components"
+      }
+    ],
+    "target_files": [
+      "src/modules/auth/auth.controller.ts",
+      "src/modules/auth/auth.service.ts",
+      "src/common/guards/jwt-auth.guard.ts",
+      "src/common/guards/role.guard.ts",
+      "src/common/decorators/roles.decorator.ts",
+      "src/modules/auth/dto/login.dto.ts",
+      "src/modules/auth/dto/refresh.dto.ts",
+      "src/components/auth/AuthGuard.tsx",
+      "src/components/auth/RoleBasedRoute.tsx",
+      "src/components/auth/PermissionButton.tsx",
+      "src/pages/auth/LoginPage.tsx",
+      "src/modules/auth/auth.controller.spec.ts",
+      "src/modules/auth/auth.service.spec.ts",
+      "src/common/guards/jwt-auth.guard.spec.ts"
+    ]
+  }
+}

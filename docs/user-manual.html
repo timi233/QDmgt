@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>渠道管理系统 - 使用手册</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.8;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: #fff;
+        }
+
+        h1 {
+            color: #1f1f1f;
+            font-size: 28px;
+            text-align: center;
+            border-bottom: 3px solid #1890ff;
+            padding-bottom: 20px;
+            margin-bottom: 40px;
+        }
+
+        h2 {
+            color: #1890ff;
+            font-size: 22px;
+            margin-top: 50px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e8e8e8;
+            page-break-after: avoid;
+        }
+
+        h3 {
+            color: #333;
+            font-size: 18px;
+            margin-top: 30px;
+            page-break-after: avoid;
+        }
+
+        h4 {
+            color: #666;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+
+        p {
+            margin: 12px 0;
+            text-align: justify;
+        }
+
+        ul, ol {
+            padding-left: 24px;
+        }
+
+        li {
+            margin: 8px 0;
+        }
+
+        .toc {
+            background: #f5f7fa;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 40px;
+        }
+
+        .toc h2 {
+            margin-top: 0;
+            border-bottom: none;
+            color: #1f1f1f;
+        }
+
+        .toc ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .toc > ul > li {
+            margin: 15px 0;
+        }
+
+        .toc > ul > li > ul {
+            padding-left: 20px;
+            margin-top: 8px;
+        }
+
+        .toc > ul > li > ul > li {
+            margin: 5px 0;
+            color: #666;
+        }
+
+        .toc a {
+            color: #1890ff;
+            text-decoration: none;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            page-break-inside: avoid;
+        }
+
+        th, td {
+            border: 1px solid #e8e8e8;
+            padding: 12px 15px;
+            text-align: left;
+        }
+
+        th {
+            background: #fafafa;
+            font-weight: 600;
+        }
+
+        tr:nth-child(even) {
+            background: #fafafa;
+        }
+
+        .tip {
+            background: #e6f7ff;
+            border-left: 4px solid #1890ff;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .tip-title {
+            font-weight: 600;
+            color: #1890ff;
+            margin-bottom: 5px;
+        }
+
+        .warning {
+            background: #fffbe6;
+            border-left: 4px solid #faad14;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .warning-title {
+            font-weight: 600;
+            color: #faad14;
+            margin-bottom: 5px;
+        }
+
+        .workflow {
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .workflow-title {
+            font-weight: 600;
+            color: #52c41a;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .step {
+            display: flex;
+            align-items: flex-start;
+            margin: 15px 0;
+        }
+
+        .step-number {
+            background: #1890ff;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .feature-card {
+            background: #fafafa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+
+        .feature-title {
+            font-weight: 600;
+            color: #1f1f1f;
+            margin-bottom: 10px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-left: 8px;
+        }
+
+        .badge-admin {
+            background: #ff4d4f;
+            color: white;
+        }
+
+        .badge-leader {
+            background: #faad14;
+            color: white;
+        }
+
+        .badge-sales {
+            background: #52c41a;
+            color: white;
+        }
+
+        .page-break {
+            page-break-before: always;
+        }
+
+        .cover {
+            text-align: center;
+            padding: 100px 0;
+            page-break-after: always;
+        }
+
+        .cover h1 {
+            font-size: 36px;
+            border-bottom: none;
+            margin-bottom: 20px;
+        }
+
+        .cover .subtitle {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 60px;
+        }
+
+        .cover .version {
+            font-size: 14px;
+            color: #999;
+        }
+
+        @media print {
+            body {
+                padding: 0;
+            }
+
+            .toc, .tip, .warning, .workflow, .feature-card {
+                break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 封面 -->
+    <div class="cover">
+        <h1>渠道管理系统</h1>
+        <p class="subtitle">使用手册</p>
+        <p class="version">版本 1.0.0 | 2024年12月</p>
+    </div>
+
+    <!-- 目录 -->
+    <div class="toc">
+        <h2>目录</h2>
+        <ul>
+            <li><a href="#intro">1. 系统简介</a></li>
+            <li><a href="#login">2. 登录与注册</a></li>
+            <li><a href="#workspace">3. 工作台</a></li>
+            <li><a href="#distributor">4. 分销商管理</a></li>
+            <li><a href="#visit">5. 拜访记录</a></li>
+            <li><a href="#health">6. 健康度管理</a></li>
+            <li><a href="#workplan">7. 工作计划</a></li>
+            <li><a href="#training">8. 培训管理</a></li>
+            <li><a href="#resource">9. 资料库</a></li>
+            <li><a href="#ticket">10. 支持工单</a></li>
+            <li><a href="#certification">11. 认证管理</a></li>
+            <li><a href="#target">12. 目标管理</a></li>
+            <li><a href="#dashboard">13. 数据看板</a></li>
+            <li><a href="#user">14. 用户管理</a></li>
+            <li><a href="#workflow">15. 典型工作流程</a></li>
+        </ul>
+    </div>
+
+    <!-- 系统简介 -->
+    <h2 id="intro">1. 系统简介</h2>
+
+    <p>渠道管理系统是一款专为渠道销售团队设计的一站式管理平台，帮助企业高效管理分销商网络、追踪销售任务、监控渠道健康状态，实现渠道业务的数字化运营。</p>
+
+    <h3>1.1 系统特点</h3>
+    <ul>
+        <li><strong>一站式管理</strong> - 分销商信息、任务、拜访、培训等功能集中管理</li>
+        <li><strong>健康度评估</strong> - 智能评估渠道伙伴健康状态，预警潜在风险</li>
+        <li><strong>工作流协同</strong> - 任务分配、进度跟踪、团队协作一体化</li>
+        <li><strong>数据驱动</strong> - 多维度数据统计与分析，辅助业务决策</li>
+        <li><strong>飞书集成</strong> - 支持飞书单点登录，与企业办公系统无缝对接</li>
+    </ul>
+
+    <h3>1.2 用户角色</h3>
+    <table>
+        <tr>
+            <th>角色</th>
+            <th>说明</th>
+            <th>权限范围</th>
+        </tr>
+        <tr>
+            <td><span class="badge badge-admin">Admin</span> 管理员</td>
+            <td>系统管理员</td>
+            <td>所有功能 + 用户管理</td>
+        </tr>
+        <tr>
+            <td><span class="badge badge-leader">Leader</span> 负责人</td>
+            <td>团队负责人</td>
+            <td>团队数据查看 + 目标设定 + 数据看板</td>
+        </tr>
+        <tr>
+            <td><span class="badge badge-sales">Sales</span> 销售</td>
+            <td>一线销售人员</td>
+            <td>个人分销商和任务管理</td>
+        </tr>
+    </table>
+
+    <!-- 登录与注册 -->
+    <h2 id="login" class="page-break">2. 登录与注册</h2>
+
+    <h3>2.1 账号密码登录</h3>
+    <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">访问系统登录页面，输入注册邮箱地址</div>
+    </div>
+    <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">输入密码（至少8位字符）</div>
+    </div>
+    <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">点击"登录"按钮进入系统</div>
+    </div>
+
+    <h3>2.2 飞书一键登录</h3>
+    <p>如果您的企业已配置飞书集成，可点击"飞书一键登录"按钮，系统将跳转至飞书授权页面。授权后自动完成登录并跳转到工作台。</p>
+
+    <div class="tip">
+        <div class="tip-title">提示</div>
+        首次使用飞书登录的用户，系统将自动创建账号并同步飞书用户信息。
+    </div>
+
+    <h3>2.3 新用户注册</h3>
+    <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">点击登录页"立即注册"链接</div>
+    </div>
+    <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">填写用户名、邮箱、姓名（选填）、密码</div>
+    </div>
+    <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">确认密码后点击"注册"</div>
+    </div>
+    <div class="step">
+        <div class="step-number">4</div>
+        <div class="step-content">注册成功后自动登录并进入工作台</div>
+    </div>
+
+    <!-- 工作台 -->
+    <h2 id="workspace" class="page-break">3. 工作台</h2>
+
+    <p>工作台是用户登录后的首页，展示个人任务看板和工作统计数据。</p>
+
+    <h3>3.1 任务看板</h3>
+    <p>任务按紧急程度分为三栏展示：</p>
+    <ul>
+        <li><strong>紧急任务</strong> - 已逾期、优先级为紧急、或距离截止时间不足4小时的任务</li>
+        <li><strong>今日任务</strong> - 截止日期为今天的待处理任务</li>
+        <li><strong>即将到期</strong> - 其他未完成的任务</li>
+    </ul>
+
+    <h3>3.2 统计卡片</h3>
+    <table>
+        <tr>
+            <th>指标</th>
+            <th>说明</th>
+        </tr>
+        <tr>
+            <td>总任务数</td>
+            <td>当前所有任务总数</td>
+        </tr>
+        <tr>
+            <td>已完成</td>
+            <td>状态为已完成的任务数量</td>
+        </tr>
+        <tr>
+            <td>已逾期</td>
+            <td>超过截止时间未完成的任务数量</td>
+        </tr>
+        <tr>
+            <td>完成率</td>
+            <td>已完成任务占总任务的百分比</td>
+        </tr>
+    </table>
+
+    <h3>3.3 创建任务</h3>
+    <p>点击右上角"新建任务"按钮，在弹窗中填写：</p>
+    <ul>
+        <li><strong>任务标题</strong> - 2-100个字符</li>
+        <li><strong>任务描述</strong> - 至少10个字符，详细说明任务内容</li>
+        <li><strong>关联经销商</strong> - 选择相关的分销商（可选）</li>
+        <li><strong>优先级</strong> - 低/中/高/紧急</li>
+        <li><strong>截止时间</strong> - 选择任务截止日期和时间</li>
+    </ul>
+
+    <!-- 分销商管理 -->
+    <h2 id="distributor" class="page-break">4. 分销商管理</h2>
+
+    <p>分销商管理模块用于维护渠道伙伴的基本信息、分类标签和业务数据。</p>
+
+    <h3>4.1 分销商列表</h3>
+    <p>列表页展示所有分销商，支持以下操作：</p>
+    <ul>
+        <li><strong>搜索</strong> - 按名称、联系人、电话等关键词搜索</li>
+        <li><strong>筛选</strong> - 按区域、合作等级、渠道类型等条件筛选</li>
+        <li><strong>排序</strong> - 按创建时间、健康度评分等字段排序</li>
+    </ul>
+
+    <h3>4.2 分销商分类</h3>
+
+    <h4>合作等级</h4>
+    <table>
+        <tr>
+            <th>等级</th>
+            <th>说明</th>
+        </tr>
+        <tr>
+            <td>铂金</td>
+            <td>最高级别战略合作伙伴</td>
+        </tr>
+        <tr>
+            <td>金牌</td>
+            <td>核心合作伙伴</td>
+        </tr>
+        <tr>
+            <td>银牌</td>
+            <td>重要合作伙伴</td>
+        </tr>
+        <tr>
+            <td>铜牌</td>
+            <td>标准合作伙伴</td>
+        </tr>
+    </table>
+
+    <h4>渠道层级</h4>
+    <table>
+        <tr>
+            <th>层级</th>
+            <th>说明</th>
+        </tr>
+        <tr>
+            <td>战略级</td>
+            <td>战略合作伙伴，享有最高支持级别</td>
+        </tr>
+        <tr>
+            <td>核心级</td>
+            <td>核心业务伙伴</td>
+        </tr>
+        <tr>
+            <td>标准级</td>
+            <td>标准授权伙伴</td>
+        </tr>
+        <tr>
+            <td>发展级</td>
+            <td>新发展或培育中的伙伴</td>
+        </tr>
+    </table>
+
+    <h4>伙伴类型</h4>
+    <ul>
+        <li><strong>ISV</strong> - 独立软件开发商</li>
+        <li><strong>SI</strong> - 系统集成商</li>
+        <li><strong>VAR</strong> - 增值分销商</li>
+        <li><strong>代理商</strong> - 区域代理</li>
+        <li><strong>经销商</strong> - 产品经销商</li>
+    </ul>
+
+    <h3>4.3 新建分销商</h3>
+    <p>点击"新建分销商"按钮，填写以下信息：</p>
+
+    <div class="feature-card">
+        <div class="feature-title">基本信息</div>
+        <ul>
+            <li>分销商名称（必填）</li>
+            <li>所在区域（省/市/区三级选择）</li>
+            <li>联系人姓名</li>
+            <li>联系电话</li>
+        </ul>
+    </div>
+
+    <div class="feature-card">
+        <div class="feature-title">渠道分类</div>
+        <ul>
+            <li>合作等级</li>
+            <li>渠道层级</li>
+            <li>伙伴类型</li>
+            <li>渠道类型（基础盘/高价值/待开发等）</li>
+        </ul>
+    </div>
+
+    <div class="feature-card">
+        <div class="feature-title">业务信息</div>
+        <ul>
+            <li>授信额度</li>
+            <li>季度目标</li>
+            <li>产品线</li>
+            <li>行业聚焦</li>
+            <li>服务区域</li>
+        </ul>
+    </div>
+
+    <!-- 拜访记录 -->
+    <h2 id="visit" class="page-break">5. 拜访记录</h2>
+
+    <p>拜访记录模块用于记录与分销商的沟通拜访情况，追踪客户关系维护进展。</p>
+
+    <h3>5.1 拜访类型</h3>
+    <table>
+        <tr>
+            <th>类型</th>
+            <th>说明</th>
+        </tr>
+        <tr>
+            <td>现场拜访</td>
+            <td>上门拜访客户</td>
+        </tr>
+        <tr>
+            <td>线上会议</td>
+            <td>视频/音频会议沟通</td>
+        </tr>
+        <tr>
+            <td>电话沟通</td>
+            <td>电话拜访</td>
+        </tr>
+        <tr>
+            <td>会议活动</td>
+            <td>展会、研讨会等活动场合</td>
+        </tr>
+    </table>
+
+    <h3>5.2 记录拜访</h3>
+    <p>创建拜访记录需填写：</p>
+    <ul>
+        <li><strong>拜访对象</strong> - 选择分销商</li>
+        <li><strong>拜访日期</strong> - 拜访时间</li>
+        <li><strong>拜访类型</strong> - 现场/线上/电话/会议</li>
+        <li><strong>拜访目的</strong> - 本次拜访的主要目的</li>
+        <li><strong>参与人员</strong> - 双方参与人员名单</li>
+        <li><strong>讨论要点</strong> - 会议/沟通主要内容</li>
+        <li><strong>客户反馈</strong> - 客户的意见和建议</li>
+        <li><strong>后续行动</strong> - 需要跟进的事项</li>
+        <li><strong>满意度评分</strong> - 1-5分评价客户满意度</li>
+    </ul>
+
+    <div class="tip">
+        <div class="tip-title">最佳实践</div>
+        每次拜访后及时记录，确保信息完整准确。满意度评分有助于评估渠道健康状况。
+    </div>
+
+    <!-- 健康度管理 -->
+    <h2 id="health" class="page-break">6. 健康度管理</h2>
+
+    <p>健康度管理通过多维度指标评估分销商的业务健康状态，帮助识别风险和机会。</p>
+
+    <h3>6.1 评分维度</h3>
+
+    <div class="feature-card">
+        <div class="feature-title">业绩维度（30分）</div>
+        <ul>
+            <li>营收增长率</li>
+            <li>目标达成率</li>
+            <li>订单频率</li>
+        </ul>
+    </div>
+
+    <div class="feature-card">
+        <div class="feature-title">参与度维度（25分）</div>
+        <ul>
+            <li>产品线覆盖数</li>
+            <li>培训参与度</li>
+        </ul>
+    </div>
+
+    <div class="feature-card">
+        <div class="feature-title">活跃度维度（25分）</div>
+        <ul>
+            <li>最近订单天数</li>
+            <li>最近联系天数</li>
+            <li>响应率</li>
+        </ul>
+    </div>
+
+    <div class="feature-card">
+        <div class="feature-title">满意度维度（20分）</div>
+        <ul>
+            <li>平均满意度评分</li>
+            <li>投诉数量</li>
+        </ul>
+    </div>
+
+    <h3>6.2 健康状态</h3>
+    <table>
+        <tr>
+            <th>状态</th>
+            <th>评分范围</th>
+            <th>说明</th>
+        </tr>
+        <tr>
+            <td style="color: #52c41a;">健康</td>
+            <td>80-100分</td>
+            <td>伙伴状态良好，保持现有合作</td>
+        </tr>
+        <tr>
+            <td style="color: #faad14;">预警</td>
+            <td>60-79分</td>
+            <td>存在潜在风险，需要关注</td>
+        </tr>
+        <tr>
+            <td style="color: #ff4d4f;">风险</td>
+            <td>40-59分</td>
+            <td>明显问题，需要及时干预</td>
+        </tr>
+        <tr>
+            <td style="color: #999;">休眠</td>
+            <td>0-39分</td>
+            <td>长期不活跃，需要激活或清理</td>
+        </tr>
+    </table>
+
+    <h3>6.3 风险预警</h3>
+    <p>系统会根据健康度评分自动生成预警和改进建议，包括：</p>
+    <ul>
+        <li>长时间未联系提醒</li>
+        <li>订单下降预警</li>
+        <li>满意度下降提醒</li>
+        <li>认证即将过期提醒</li>
+    </ul>
+
+    <!-- 工作计划 -->
+    <h2 id="workplan" class="page-break">7. 工作计划</h2>
+
+    <p>工作计划模块支持月度工作计划的制定、执行和复盘。</p>
+
+    <h3>7.1 月度计划</h3>
+    <p>每月初为每个重点分销商制定工作计划，包括：</p>
+    <ul>
+        <li><strong>机会来源</strong> - 本月业务机会的来源渠道</li>
+        <li><strong>项目管理</strong> - 重点项目的推进计划</li>
+        <li><strong>渠道动作</strong> - 计划开展的渠道活动</li>
+    </ul>
+
+    <h3>7.2 周度复盘</h3>
+    <p>每周对月度计划进行复盘更新：</p>
+    <ul>
+        <li><strong>进展分析</strong> - 本周工作进展情况</li>
+        <li><strong>障碍识别</strong> - 遇到的困难和阻碍</li>
+        <li><strong>计划调整</strong> - 下周工作计划的调整</li>
+    </ul>
+
+    <h3>7.3 计划状态</h3>
+    <table>
+        <tr>
+            <th>状态</th>
+            <th>说明</th>
+        </tr>
+        <tr>
+            <td>计划中</td>
+            <td>月初制定，尚未开始执行</td>
+        </tr>
+        <tr>
+            <td>执行中</td>
+            <td>正在按计划执行</td>
+        </tr>
+        <tr>
+            <td>已完成</td>
+            <td>月底完成结案</td>
+        </tr>
+    </table>
+
+    <!-- 培训管理 -->
+    <h2 id="training" class="page-break">8. 培训管理</h2>
+
+    <p>培训管理模块用于组织和跟踪面向渠道伙伴的培训活动。</p>
+
+    <h3>8.1 培训类型</h3>
+    <table>
+        <tr>
+            <th>类型</th>
+            <th>说明</th>
+        </tr>
+        <tr>
+            <td>产品培训</td>
+            <td>产品功能、特性、使用方法培训</td>
+        </tr>
+        <tr>
+            <td>销售培训</td>
+            <td>销售技巧、话术、方案培训</td>
+        </tr>
+        <tr>
+            <td>技术培训</td>
+            <td>技术方案、实施、运维培训</td>
+        </tr>
+        <tr>
+            <td>认证培训</td>
+            <td>认证考试相关培训</td>
+        </tr>
+    </table>
+
+    <h3>8.2 培训形式</h3>
+    <ul>
+        <li><strong>线上培训</strong> - 网络直播或视频会议</li>
+        <li><strong>线下培训</strong> - 现场集中培训</li>
+        <li><strong>视频课程</strong> - 录播视频自主学习</li>
+    </ul>
+
+    <h3>8.3 参训管理</h3>
+    <p>培训组织者可以：</p>
+    <ul>
+        <li>创建培训活动，设置时间、地点、名额</li>
+        <li>管理参训人员报名</li>
+        <li>记录出勤情况</li>
+        <li>录入考核成绩</li>
+        <li>颁发培训证书</li>
+    </ul>
+
+    <!-- 资料库 -->
+    <h2 id="resource" class="page-break">9. 资料库</h2>
+
+    <p>资料库集中管理面向渠道伙伴的各类资料文档。</p>
+
+    <h3>9.1 资料分类</h3>
+    <table>
+        <tr>
+            <th>分类</th>
+            <th>说明</th>
+        </tr>
+        <tr>
+            <td>产品文档</td>
+            <td>产品手册、技术规格、使用指南</td>
+        </tr>
+        <tr>
+            <td>销售工具包</td>
+            <td>销售话术、报价模板、方案模板</td>
+        </tr>
+        <tr>
+            <td>成功案例</td>
+            <td>客户案例、行业解决方案</td>
+        </tr>
+        <tr>
+            <td>政策文件</td>
+            <td>渠道政策、合作协议模板</td>
+        </tr>
+        <tr>
+            <td>视频资料</td>
+            <td>产品演示、培训录像</td>
+        </tr>
+        <tr>
+            <td>白皮书</td>
+            <td>行业报告、技术白皮书</td>
+        </tr>
+    </table>
+
+    <h3>9.2 访问权限</h3>
+    <p>资料可设置访问权限，根据分销商等级控制可见范围：</p>
+    <ul>
+        <li><strong>全部可见</strong> - 所有分销商可访问</li>
+        <li><strong>铂金专属</strong> - 仅铂金级伙伴可访问</li>
+        <li><strong>金牌及以上</strong> - 金牌、铂金级伙伴可访问</li>
+        <li><strong>银牌及以上</strong> - 银牌及以上伙伴可访问</li>
+    </ul>
+
+    <!-- 支持工单 -->
+    <h2 id="ticket" class="page-break">10. 支持工单</h2>
+
+    <p>支持工单系统用于处理渠道伙伴的问题反馈和支持请求。</p>
+
+    <h3>10.1 工单类型</h3>
+    <table>
+        <tr>
+            <th>类型</th>
+            <th>说明</th>
+        </tr>
+        <tr>
+            <td>技术支持</td>
+            <td>产品技术问题、故障处理</td>
+        </tr>
+        <tr>
+            <td>销售支持</td>
+            <td>报价、方案、项目支持</td>
+        </tr>
+        <tr>
+            <td>政策咨询</td>
+            <td>渠道政策、合作模式咨询</td>
+        </tr>
+        <tr>
+            <td>账务问题</td>
+            <td>结算、发票、信用额度问题</td>
+        </tr>
+        <tr>
+            <td>其他</td>
+            <td>其他类型问题</td>
+        </tr>
+    </table>
+
+    <h3>10.2 优先级</h3>
+    <table>
+        <tr>
+            <th>优先级</th>
+            <th>响应时间</th>
+            <th>适用场景</th>
+        </tr>
+        <tr>
+            <td style="color: #ff4d4f;">紧急</td>
+            <td>2小时</td>
+            <td>生产故障、重大客户问题</td>
+        </tr>
+        <tr>
+            <td style="color: #faad14;">高</td>
+            <td>4小时</td>
+            <td>影响业务的问题</td>
+        </tr>
+        <tr>
+            <td style="color: #1890ff;">普通</td>
+            <td>24小时</td>
+            <td>一般咨询和问题</td>
+        </tr>
+        <tr>
+            <td style="color: #999;">低</td>
+            <td>48小时</td>
+            <td>建议、非紧急需求</td>
+        </tr>
+    </table>
+
+    <h3>10.3 工单状态</h3>
+    <ul>
+        <li><strong>待处理</strong> - 新建工单，等待分配</li>
+        <li><strong>已分配</strong> - 已分配处理人</li>
+        <li><strong>处理中</strong> - 正在处理</li>
+        <li><strong>待反馈</strong> - 等待客户反馈</li>
+        <li><strong>已解决</strong> - 问题已解决</li>
+        <li><strong>已关闭</strong> - 工单关闭归档</li>
+    </ul>
+
+    <!-- 认证管理 -->
+    <h2 id="certification" class="page-break">11. 认证管理</h2>
+
+    <p>认证管理模块用于追踪渠道伙伴的资质认证状态。</p>
+
+    <h3>11.1 认证类型</h3>
+    <table>
+        <tr>
+            <th>类型</th>
+            <th>说明</th>
+        </tr>
+        <tr>
+            <td>产品认证</td>
+            <td>特定产品线的销售/实施资质</td>
+        </tr>
+        <tr>
+            <td>销售认证</td>
+            <td>销售能力资质认证</td>
+        </tr>
+        <tr>
+            <td>技术认证</td>
+            <td>技术实施能力认证</td>
+        </tr>
+        <tr>
+            <td>合规认证</td>
+            <td>行业合规资质认证</td>
+        </tr>
+    </table>
+
+    <h3>11.2 认证级别</h3>
+    <ul>
+        <li><strong>金牌认证</strong> - 最高级别，享有最优政策</li>
+        <li><strong>银牌认证</strong> - 中级认证</li>
+        <li><strong>铜牌认证</strong> - 基础认证</li>
+    </ul>
+
+    <h3>11.3 认证验证</h3>
+    <p>系统提供认证验证功能，通过输入验证码可查询认证的真实性和有效期。</p>
+
+    <div class="warning">
+        <div class="warning-title">注意</div>
+        认证到期前30天系统会自动提醒，请及时安排续证。
+    </div>
+
+    <!-- 目标管理 -->
+    <h2 id="target" class="page-break">12. 目标管理</h2>
+    <p><span class="badge badge-leader">Leader</span> <span class="badge badge-admin">Admin</span></p>
+
+    <p>目标管理模块用于设定和追踪渠道业务目标。</p>
+
+    <h3>12.1 目标周期</h3>
+    <ul>
+        <li><strong>年度目标</strong> - 全年业务总目标</li>
+        <li><strong>季度目标</strong> - 分季度目标</li>
+        <li><strong>月度目标</strong> - 分月度目标</li>
+    </ul>
+
+    <h3>12.2 目标指标</h3>
+    <table>
+        <tr>
+            <th>指标</th>
+            <th>说明</th>
+        </tr>
+        <tr>
+            <td>新签目标</td>
+            <td>新签约伙伴数量目标</td>
+        </tr>
+        <tr>
+            <td>核心机会</td>
+            <td>核心业务机会金额目标</td>
+        </tr>
+        <tr>
+            <td>核心营收</td>
+            <td>核心业务收入目标</td>
+        </tr>
+        <tr>
+            <td>高价值机会</td>
+            <td>高价值项目机会目标</td>
+        </tr>
+        <tr>
+            <td>高价值营收</td>
+            <td>高价值项目收入目标</td>
+        </tr>
+    </table>
+
+    <h3>12.3 目标追踪</h3>
+    <p>系统自动统计目标完成情况，支持：</p>
+    <ul>
+        <li>实时查看各指标完成进度</li>
+        <li>目标达成率可视化展示</li>
+        <li>历史目标数据对比</li>
+    </ul>
+
+    <!-- 数据看板 -->
+    <h2 id="dashboard" class="page-break">13. 数据看板</h2>
+    <p><span class="badge badge-leader">Leader</span> <span class="badge badge-admin">Admin</span></p>
+
+    <p>数据看板为管理层提供团队业务数据的可视化展示。</p>
+
+    <h3>13.1 核心指标</h3>
+    <ul>
+        <li>分销商总数及分布</li>
+        <li>任务完成情况统计</li>
+        <li>拜访记录汇总</li>
+        <li>渠道健康度分布</li>
+        <li>目标完成进度</li>
+    </ul>
+
+    <h3>13.2 数据维度</h3>
+    <ul>
+        <li><strong>时间维度</strong> - 按日/周/月/季度/年查看</li>
+        <li><strong>人员维度</strong> - 按销售人员查看</li>
+        <li><strong>区域维度</strong> - 按区域查看</li>
+        <li><strong>渠道维度</strong> - 按渠道类型、等级查看</li>
+    </ul>
+
+    <!-- 用户管理 -->
+    <h2 id="user" class="page-break">14. 用户管理</h2>
+    <p><span class="badge badge-admin">Admin</span></p>
+
+    <p>用户管理模块仅管理员可访问，用于管理系统用户。</p>
+
+    <h3>14.1 用户列表</h3>
+    <p>查看所有系统用户，包括：</p>
+    <ul>
+        <li>用户名、邮箱、姓名</li>
+        <li>用户角色</li>
+        <li>账号状态</li>
+        <li>创建时间</li>
+    </ul>
+
+    <h3>14.2 用户操作</h3>
+    <ul>
+        <li><strong>创建用户</strong> - 添加新系统用户</li>
+        <li><strong>编辑用户</strong> - 修改用户信息和角色</li>
+        <li><strong>禁用/启用</strong> - 控制用户账号状态</li>
+        <li><strong>重置密码</strong> - 重置用户登录密码</li>
+    </ul>
+
+    <!-- 典型工作流程 -->
+    <h2 id="workflow" class="page-break">15. 典型工作流程</h2>
+
+    <h3>15.1 新分销商入驻流程</h3>
+    <div class="workflow">
+        <div class="workflow-title">流程步骤</div>
+        <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-content"><strong>创建分销商</strong> - 在分销商管理中新建，填写基本信息和分类</div>
+        </div>
+        <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-content"><strong>安排首次拜访</strong> - 创建拜访记录，记录首次沟通情况</div>
+        </div>
+        <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-content"><strong>制定工作计划</strong> - 为该分销商创建月度工作计划</div>
+        </div>
+        <div class="step">
+            <div class="step-number">4</div>
+            <div class="step-content"><strong>安排培训</strong> - 邀请参加产品培训</div>
+        </div>
+        <div class="step">
+            <div class="step-number">5</div>
+            <div class="step-content"><strong>申请认证</strong> - 完成培训后申请相关认证</div>
+        </div>
+    </div>
+
+    <h3>15.2 日常工作流程</h3>
+    <div class="workflow">
+        <div class="workflow-title">每日工作</div>
+        <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-content"><strong>查看工作台</strong> - 登录系统，查看今日任务和紧急事项</div>
+        </div>
+        <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-content"><strong>处理任务</strong> - 按优先级处理待办任务，更新任务状态</div>
+        </div>
+        <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-content"><strong>记录拜访</strong> - 完成客户拜访后及时记录</div>
+        </div>
+        <div class="step">
+            <div class="step-number">4</div>
+            <div class="step-content"><strong>处理工单</strong> - 响应分配给自己的支持工单</div>
+        </div>
+    </div>
+
+    <h3>15.3 月度工作流程</h3>
+    <div class="workflow">
+        <div class="workflow-title">月度循环</div>
+        <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-content"><strong>月初计划</strong> - 制定当月工作计划，设定重点分销商工作方向</div>
+        </div>
+        <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-content"><strong>周度复盘</strong> - 每周更新计划执行进展，识别问题并调整</div>
+        </div>
+        <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-content"><strong>健康度检查</strong> - 关注预警和风险状态的分销商</div>
+        </div>
+        <div class="step">
+            <div class="step-number">4</div>
+            <div class="step-content"><strong>月末结案</strong> - 完成当月工作计划，总结经验教训</div>
+        </div>
+    </div>
+
+    <h3>15.4 问题处理流程</h3>
+    <div class="workflow">
+        <div class="workflow-title">工单处理</div>
+        <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-content"><strong>创建工单</strong> - 分销商提出问题，创建支持工单</div>
+        </div>
+        <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-content"><strong>分配处理</strong> - 根据问题类型分配给相应人员</div>
+        </div>
+        <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-content"><strong>处理跟进</strong> - 处理人员跟进问题，添加处理记录</div>
+        </div>
+        <div class="step">
+            <div class="step-number">4</div>
+            <div class="step-content"><strong>解决关闭</strong> - 问题解决后关闭工单，记录满意度</div>
+        </div>
+    </div>
+
+    <div class="tip" style="margin-top: 40px;">
+        <div class="tip-title">需要帮助？</div>
+        如在使用过程中遇到问题，请联系系统管理员或查阅在线帮助文档。
+    </div>
+
+    <div style="text-align: center; margin-top: 60px; color: #999; font-size: 12px;">
+        <p>渠道管理系统 使用手册</p>
+        <p>版本 1.0.0 | 最后更新：2024年12月</p>
+    </div>
+</body>
+</html>

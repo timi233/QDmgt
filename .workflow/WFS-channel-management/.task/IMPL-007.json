@@ -1,0 +1,151 @@
+{
+  "id": "IMPL-007",
+  "title": "前端UI - 领导数据看板和图表可视化",
+  "status": "pending",
+  "meta": {
+    "type": "feature",
+    "agent": "@code-developer"
+  },
+  "context": {
+    "requirements": [
+      "创建4个React组件: [DashboardPage(看板主页, 400行), StatsCards(统计卡片组, 180行), TrendChart(趋势图表, 150行), DataTable(数据表格, 220行)]",
+      "实现8个统计指标卡片: [分销商总数, 本月新增, 成交率, 区域分布TOP5, 任务总数, 已完成, 进行中, 逾期任务]",
+      "集成3个图表组件: [月度新增趋势折线图(ECharts), 区域分布饼图(ECharts), 任务完成率进度条(Ant Design Progress)]",
+      "实现5个交互功能: [手动刷新按钮(清除缓存), 时间范围筛选(本周/本月/本季度), 卡片点击下钻(跳转明细), 数据异常告警(黄色图标), 更新时间戳显示]"
+    ],
+    "focus_paths": ["src/pages/dashboard", "src/components/charts"],
+    "acceptance": [
+      "4个组件渲染成功: 验证 npm test -- DashboardPage.test.tsx 所有测试通过",
+      "8个统计卡片显示: 验证 页面加载后调用GET /api/dashboard/stats, 渲染8个卡片且数值正确(非NaN/undefined)",
+      "3个图表渲染: 验证 ECharts折线图显示过去6个月趋势, 饼图显示TOP5区域分布, 进度条显示任务完成率",
+      "5个交互功能验证: 验证 点击'手动刷新'按钮后重新调用API(添加timestamp参数强制刷新), 卡片右下角显示'更新于 HH:MM:SS'"
+    ],
+    "depends_on": ["IMPL-006"],
+    "artifacts": [
+      {
+        "type": "synthesis_specification",
+        "path": ".workflow/WFS-channel-management/.brainstorming/guidance-specification.md",
+        "priority": "highest",
+        "usage": "看板设计决策, EP-006数据延迟说明和异常告警"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/WFS-channel-management/.brainstorming/ui-designer/analysis.md",
+        "priority": "high",
+        "usage": "Visual design: 清爽简约配色, 卡片样式, 图表配色方案"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/WFS-channel-management/.brainstorming/product-manager/analysis.md",
+        "priority": "high",
+        "usage": "User Story 3.1-3.4: 领导看板功能需求和数据异常处理"
+      }
+    ]
+  },
+  "flow_control": {
+    "pre_analysis": [
+      {
+        "step": "load_ui_specifications",
+        "action": "Load UI design and product requirements for dashboard",
+        "commands": [
+          "Read(.workflow/WFS-channel-management/.brainstorming/ui-designer/analysis.md)",
+          "Read(.workflow/WFS-channel-management/.brainstorming/product-manager/analysis.md)"
+        ],
+        "output_to": "ui_product_spec",
+        "on_error": "fail"
+      }
+    ],
+    "implementation_approach": [
+      {
+        "step": 1,
+        "title": "创建统计卡片组件StatsCards",
+        "description": "实现8个统计指标卡片: 每个卡片显示数值, 趋势箭头(上升/下降), 同比数据, 更新时间戳",
+        "modification_points": [
+          "创建1个文件: src/components/charts/StatsCards.tsx (约180行)",
+          "定义8个卡片配置: [{ key: 'total_distributors', title: '分销商总数', icon: <ShopOutlined />, color: '#1890ff' }, ...]",
+          "实现卡片布局: 使用Ant Design Row+Col组件, 每行4个卡片(gutter=16), 响应式布局(xs=24, sm=12, md=6)",
+          "实现趋势指示器: 根据同比数据显示上升箭头(绿色)或下降箭头(红色), 百分比变化"
+        ],
+        "logic_flow": [
+          "从[ui_product_spec]提取卡片样式规范和数据延迟标注需求",
+          "定义StatsCards组件Props: { data: DashboardStats, loading: boolean, onCardClick: (key: string) => void }",
+          "使用useEffect调用GET /api/dashboard/stats获取数据",
+          "定义8个卡片配置数组CARD_CONFIGS: 包含key, title, icon, color, format函数",
+          "渲染Row容器包含8个Col: 每个Col渲染一个Card组件",
+          "Card内容结构: 顶部(icon+title), 中间(数值+单位), 底部(趋势箭头+同比百分比+更新时间戳)",
+          "实现formatValue函数: 处理NaN/null显示'--', 成交率显示百分比, 其他显示整数",
+          "实现getTrendIcon函数: 若同比>0显示<ArrowUpOutlined style={{color:'#52c41a'}} />, 否则<ArrowDownOutlined style={{color:'#f5222d'}} />",
+          "实现onClick: 点击卡片调用onCardClick(cardKey), 父组件navigate到对应明细页",
+          "右下角显示更新时间: <Text type='secondary'>更新于 {dayjs(data.updated_at).format('HH:mm:ss')}</Text>",
+          "处理loading状态: loading=true时显示Skeleton占位",
+          "编写6个单元测试覆盖8个卡片渲染, 趋势箭头, 点击交互, NaN处理"
+        ],
+        "depends_on": [],
+        "output": "stats_cards_component"
+      },
+      {
+        "step": 2,
+        "title": "创建趋势图表组件TrendChart",
+        "description": "使用ECharts实现月度新增趋势折线图和区域分布饼图",
+        "modification_points": [
+          "创建2个文件: [src/components/charts/TrendChart.tsx(150行), src/components/charts/RegionPieChart.tsx(120行)]",
+          "集成echarts-for-react库: npm install echarts-for-react echarts",
+          "实现折线图配置: X轴(月份), Y轴(新增数量), 折线样式(smooth=true, 蓝色渐变), tooltip(显示详细数据)",
+          "实现饼图配置: 显示TOP5区域, 标签显示区域名称和百分比, 支持点击下钻"
+        ],
+        "logic_flow": [
+          "从[ui_product_spec]提取图表样式和交互规范",
+          "TrendChart组件: 使用useEffect调用GET /api/dashboard/distributors获取过去6个月数据",
+          "定义ECharts option配置: { title: {text: '月度新增趋势'}, xAxis: {type: 'category', data: months}, yAxis: {type: 'value'}, series: [{type: 'line', data: counts, smooth: true, itemStyle: {color: '#1890ff'}}], tooltip: {trigger: 'axis'} }",
+          "处理数据不足情况: 若数据点<3个, 显示<Empty description='历史数据不足, 需至少3个月数据' />而不渲染图表",
+          "RegionPieChart组件: 调用GET /api/dashboard/regions获取TOP5区域分布",
+          "定义饼图option: { title: {text: '区域分布TOP5'}, series: [{type: 'pie', data: [{name: region, value: count}, ...], radius: '50%', label: {formatter: '{b}: {d}%'}}], tooltip: {formatter: '{b}: {c} ({d}%)'} }",
+          "实现饼图点击事件: onChartClick={(params) => navigate(`/distributors?region=${params.name}`)}",
+          "编写4个单元测试覆盖2个图表渲染, 数据不足提示, 点击交互"
+        ],
+        "depends_on": [1],
+        "output": "trend_chart_components"
+      },
+      {
+        "step": 3,
+        "title": "创建看板主页DashboardPage和数据表格",
+        "description": "组装看板页面: 顶部统计卡片, 中部趋势图表, 底部数据表格(分销商列表+任务列表)",
+        "modification_points": [
+          "创建1个文件: src/pages/dashboard/DashboardPage.tsx (约400行)",
+          "创建1个文件: src/components/charts/DataTable.tsx (约220行)",
+          "实现页面布局: 顶部工具栏(手动刷新+时间范围筛选), 统计卡片区(8个卡片), 图表区(2行2列: 折线图+饼图+任务进度条+预留), 表格区(Tabs切换: 分销商列表/任务列表)",
+          "实现5个交互功能: 手动刷新, 时间筛选, 卡片下钻, 异常告警, 数据延迟标注"
+        ],
+        "logic_flow": [
+          "从[ui_product_spec] EP-006提取交互需求",
+          "DashboardPage使用useState管理: [loading, stats, timeRange, lastRefreshTime]",
+          "useEffect根据timeRange调用API: GET /api/dashboard/stats?range={timeRange}",
+          "顶部工具栏: <PageHeader title='数据看板' extra={[<Button icon={<ReloadOutlined />} onClick={handleRefresh}>刷新</Button>, <Select value={timeRange} onChange={setTimeRange} options={[{value:'week',label:'本周'},{value:'month',label:'本月'},{value:'quarter',label:'本季度'}]} />]} />",
+          "实现handleRefresh: 添加timestamp参数强制后端清除Redis缓存, await fetch(`/api/dashboard/stats?t=${Date.now()}`), 更新lastRefreshTime",
+          "渲染StatsCards组件: <StatsCards data={stats} loading={loading} onCardClick={handleCardClick} />",
+          "实现handleCardClick: 根据cardKey导航, 例如'total_distributors'→navigate('/distributors'), 'overdue_tasks'→navigate('/tasks?status=overdue')",
+          "渲染图表区: Row包含2个Col(span=12): 左侧<TrendChart />, 右侧<RegionPieChart />",
+          "渲染任务完成率: <Card title='任务完成率'><Progress type='dashboard' percent={stats.completed_tasks / stats.total_tasks * 100} /></Card>",
+          "实现异常告警: 若stats.has_anomaly=true, 在对应卡片右上角显示<Tooltip title={stats.anomaly_message}><WarningOutlined style={{color:'#faad14'}} /></Tooltip>",
+          "数据延迟标注: 每个卡片右下角显示'数据延迟约{stats.data_age}秒'或'实时数据'(若<10秒)",
+          "渲染DataTable组件: <Tabs items={[{key:'distributors',label:'分销商列表',children:<DistributorTable />},{key:'tasks',label:'任务列表',children:<TaskTable />}]} />",
+          "编写10个单元测试覆盖5个交互功能和布局渲染"
+        ],
+        "depends_on": [2],
+        "output": "dashboard_page_and_data_table"
+      }
+    ],
+    "target_files": [
+      "src/components/charts/StatsCards.tsx",
+      "src/components/charts/TrendChart.tsx",
+      "src/components/charts/RegionPieChart.tsx",
+      "src/pages/dashboard/DashboardPage.tsx",
+      "src/components/charts/DataTable.tsx",
+      "src/components/charts/DistributorTable.tsx",
+      "src/components/charts/TaskTable.tsx",
+      "src/components/charts/StatsCards.test.tsx",
+      "src/components/charts/TrendChart.test.tsx",
+      "src/pages/dashboard/DashboardPage.test.tsx"
+    ]
+  }
+}

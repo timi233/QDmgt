@@ -1,0 +1,222 @@
+{
+  "id": "IMPL-009",
+  "title": "订单管理模块（全流程）",
+  "status": "pending",
+  "meta": {
+    "type": "feature",
+    "agent": "@code-developer",
+    "sprint": 2,
+    "priority": "high",
+    "estimated_hours": 20
+  },
+  "context": {
+    "requirements": [
+      "实现 8 个后端 API: [GET /orders, GET /orders/:id, POST /orders, PUT /orders/:id/status, DELETE /orders/:id, GET /orders/:id/items, POST /orders/:id/audit, GET /orders/statistics]",
+      "创建 2 个 Service: [OrderService (订单 CRUD + 状态流转), OrderItemService (订单明细)]",
+      "实现 1 个订单状态机: PENDING → CONFIRMED → SHIPPED → DELIVERED (可取消)",
+      "前端实现 5 个功能: [订单列表, 创建订单 (集成价格计算器), 订单详情, 状态流转按钮, 订单统计卡片]",
+      "集成库存扣减: 订单确认时自动扣减产品库存"
+    ],
+    "focus_paths": [
+      "backend/src/services/order.service.ts",
+      "backend/src/controllers/order.controller.ts",
+      "frontend/src/pages/OrdersPage.tsx",
+      "frontend/src/pages/OrderDetailPage.tsx"
+    ],
+    "acceptance": [
+      "8 个 API 正常工作: 验证所有端点",
+      "订单创建成功: 验证自动生成订单号, 计算总金额",
+      "状态流转正确: 验证状态机转换规则",
+      "库存扣减生效: 验证订单确认后产品库存减少",
+      "前端流程完整: 验证从创建到发货的完整流程"
+    ],
+    "depends_on": ["IMPL-008"],
+    "artifacts": []
+  },
+  "flow_control": {
+    "pre_analysis": [],
+    "implementation_approach": [
+      {
+        "step": 1,
+        "title": "创建 OrderService",
+        "description": "实现订单业务逻辑",
+        "modification_points": [
+          "创建 1 个文件: backend/src/services/order.service.ts (350 行)",
+          "实现 7 个方法: [getAll, getById, create (事务), updateStatus (状态机), delete, getStatistics, cancelOrder]"
+        ],
+        "logic_flow": [
+          "create 方法 (使用 Prisma 事务):",
+          "1. 生成订单号 (格式: ORD-YYYYMMDD-随机6位)",
+          "2. 遍历订单项, 调用 PricingService.calculatePrice 计算每项价格",
+          "3. 计算 totalAmount = sum(items.subtotal)",
+          "4. Prisma.transaction: 创建 Order + OrderItem[]",
+          "5. 返回完整订单对象",
+          "updateStatus 方法 (状态机):",
+          "1. 校验当前状态可转换 (PENDING→CONFIRMED, CONFIRMED→SHIPPED, SHIPPED→DELIVERED)",
+          "2. 如果 PENDING→CONFIRMED: 调用 ProductService 扣减库存",
+          "3. 更新订单状态",
+          "4. 创建 AuditLog",
+          "getStatistics: 统计总订单数、总金额、各状态订单数"
+        ],
+        "depends_on": [],
+        "output": "order_service"
+      },
+      {
+        "step": 2,
+        "title": "创建 OrderController 和路由",
+        "description": "实现 8 个 API 端点",
+        "modification_points": [
+          "创建 2 个文件: [backend/src/controllers/order.controller.ts (250 行), backend/src/routes/order.route.ts (80 行)]"
+        ],
+        "logic_flow": [
+          "getAll: 支持过滤 (channelId, status, startDate, endDate), 分页",
+          "getById: 包含 items (包含 product 关系)",
+          "create: 请求校验, 调用 OrderService.create",
+          "updateStatus: PUT /orders/:id/status, body: {status}, 调用 OrderService.updateStatus",
+          "audit: POST /orders/:id/audit (审核订单, PENDING→CONFIRMED)",
+          "getStatistics: GET /orders/statistics, query: {channelId?, startDate?, endDate?}",
+          "权限: AGENT 只能查看自己渠道的订单, ADMIN 全部"
+        ],
+        "depends_on": [1],
+        "output": "order_endpoints"
+      },
+      {
+        "step": 3,
+        "title": "实现库存扣减逻辑",
+        "description": "订单确认时扣减库存",
+        "modification_points": [
+          "修改 1 个文件: backend/src/services/product.service.ts (添加 decreaseStock 方法, +40 行)",
+          "实现乐观锁防止超卖"
+        ],
+        "logic_flow": [
+          "decreaseStock(productId, quantity) 方法:",
+          "1. Prisma.transaction",
+          "2. 查询当前库存 (SELECT stock FOR UPDATE)",
+          "3. 校验库存充足 (stock >= quantity)",
+          "4. 如果不足: 抛出 ConflictError",
+          "5. 更新库存: UPDATE product SET stock = stock - quantity WHERE id = :id",
+          "6. 返回更新后的 product",
+          "OrderService.updateStatus 调用: 状态变为 CONFIRMED 时遍历 items 调用 decreaseStock"
+        ],
+        "depends_on": [1],
+        "output": "stock_deduction"
+      },
+      {
+        "step": 4,
+        "title": "实现前端订单列表页面",
+        "description": "订单管理主页面",
+        "modification_points": [
+          "修改 1 个文件: frontend/src/pages/OrdersPage.tsx (替换占位, 350 行)",
+          "实现 Table + 筛选 + 状态标签"
+        ],
+        "logic_flow": [
+          "OrderTable: columns [订单号, 渠道, 总金额, 状态, 创建时间, 操作]",
+          "状态字段: Tag 组件显示不同颜色 (PENDING-蓝, CONFIRMED-绿, SHIPPED-橙, DELIVERED-灰)",
+          "筛选栏: RangePicker (日期范围), Select (状态), Select (渠道, 仅 ADMIN)",
+          "useQuery 获取订单列表, 支持筛选参数",
+          "操作列: '查看详情' 按钮 (跳转 /orders/:id)",
+          "'创建订单' 按钮: 打开 CreateOrderModal"
+        ],
+        "depends_on": [],
+        "output": "orders_page"
+      },
+      {
+        "step": 5,
+        "title": "实现创建订单 Modal",
+        "description": "集成价格计算器",
+        "modification_points": [
+          "创建 1 个文件: frontend/src/components/business/CreateOrderModal.tsx (250 行)",
+          "实现动态订单项表单"
+        ],
+        "logic_flow": [
+          "Form 字段: channelId (Select, ADMIN 可选, AGENT 自动填充), items (Form.List 动态添加)",
+          "每个 item: productId (Select), quantity (InputNumber), unitPrice (自动计算, disabled), subtotal (自动计算)",
+          "集成 PriceCalculator 逻辑: 选择产品+数量后调用 pricingService.calculatePrice",
+          "自动填充 unitPrice 和 subtotal",
+          "底部显示: totalAmount (所有 subtotal 之和)",
+          "提交: useMutation 调用 orderService.createOrder",
+          "成功后: message.success, 关闭 Modal, 刷新列表"
+        ],
+        "depends_on": [4],
+        "output": "create_order_modal"
+      },
+      {
+        "step": 6,
+        "title": "实现订单详情页面",
+        "description": "展示订单详情和状态流转",
+        "modification_points": [
+          "创建 1 个文件: frontend/src/pages/OrderDetailPage.tsx (300 行)",
+          "实现订单信息 + 订单项表格 + 状态流转按钮"
+        ],
+        "logic_flow": [
+          "useParams 获取 orderId",
+          "useQuery 获取订单详情 (orderService.getOrderById)",
+          "Descriptions 组件显示订单信息 (订单号, 渠道, 状态, 总金额, 创建时间)",
+          "Table 组件显示订单项 (产品, 数量, 单价, 小计)",
+          "状态流转按钮组:",
+          "如果 status = PENDING: 显示 '审核通过' 按钮 (调用 /audit API)",
+          "如果 status = CONFIRMED: 显示 '标记发货' 按钮",
+          "如果 status = SHIPPED: 显示 '确认送达' 按钮",
+          "所有状态: 显示 '取消订单' 按钮 (红色, 二次确认)",
+          "useMutation 调用 orderService.updateStatus",
+          "成功后: invalidateQueries 刷新详情"
+        ],
+        "depends_on": [],
+        "output": "order_detail_page"
+      },
+      {
+        "step": 7,
+        "title": "实现订单统计卡片",
+        "description": "在 DashboardPage 显示",
+        "modification_points": [
+          "修改 1 个文件: frontend/src/pages/DashboardPage.tsx (添加统计卡片, +100 行)",
+          "使用 Ant Design Statistic 组件"
+        ],
+        "logic_flow": [
+          "useQuery 获取统计数据 (orderService.getStatistics)",
+          "Row + Col 布局 4 个卡片:",
+          "1. 总订单数 (Card + Statistic, icon: ShoppingOutlined)",
+          "2. 总销售额 (Card + Statistic, prefix: ¥)",
+          "3. 待审核订单 (Card + Statistic, 橙色)",
+          "4. 已完成订单 (Card + Statistic, 绿色)",
+          "点击卡片跳转到订单列表 (带状态筛选)"
+        ],
+        "depends_on": [],
+        "output": "order_statistics"
+      },
+      {
+        "step": 8,
+        "title": "测试",
+        "description": "测试订单全流程",
+        "modification_points": [
+          "执行 8 个测试: [创建订单, 价格计算, 审核订单, 库存扣减, 发货, 送达, 取消订单, 统计数据]"
+        ],
+        "logic_flow": [
+          "后端测试: 创建订单 (3 个产品, 数量 10, 20, 30)",
+          "验证订单号生成, 总金额计算正确",
+          "审核订单: PUT /orders/:id/status {status: CONFIRMED}",
+          "验证库存扣减 (查询 product.stock)",
+          "状态流转测试: CONFIRMED → SHIPPED → DELIVERED",
+          "取消订单测试: 验证可以从 PENDING/CONFIRMED 取消",
+          "前端测试: 创建订单流程, 验证价格自动计算",
+          "订单详情页: 验证状态按钮显示和功能",
+          "Dashboard 统计: 验证数据准确"
+        ],
+        "depends_on": [2, 3, 5, 6, 7],
+        "output": "test_results"
+      }
+    ],
+    "target_files": [
+      "backend/src/services/order.service.ts",
+      "backend/src/controllers/order.controller.ts",
+      "backend/src/routes/order.route.ts",
+      "backend/src/validators/order.validator.ts",
+      "backend/src/services/product.service.ts",
+      "frontend/src/services/orderService.ts",
+      "frontend/src/pages/OrdersPage.tsx",
+      "frontend/src/pages/OrderDetailPage.tsx",
+      "frontend/src/components/business/CreateOrderModal.tsx",
+      "frontend/src/pages/DashboardPage.tsx"
+    ]
+  }
+}

@@ -1,0 +1,219 @@
+{
+  "id": "IMPL-012",
+  "title": "数据分析BI看板（ECharts集成）",
+  "status": "pending",
+  "meta": {
+    "type": "feature",
+    "agent": "@code-developer",
+    "sprint": 3,
+    "priority": "high",
+    "estimated_hours": 20
+  },
+  "context": {
+    "requirements": [
+      "实现 6 个后端分析 API: [GET /analytics/sales-trend, GET /analytics/channel-performance, GET /analytics/product-ranking, GET /analytics/revenue-by-channel, GET /analytics/order-status-distribution, GET /analytics/summary]",
+      "创建 1 个 AnalyticsService: 6 个分析方法 (聚合查询)",
+      "前端实现 6 个图表组件: [销售趋势折线图, 渠道业绩柱状图, 产品排名饼图, 渠道收入树图, 订单状态分布环形图, 综合统计卡片]",
+      "集成 ECharts: 使用 @ant-design/charts 或 echarts-for-react",
+      "实现 1 个日期筛选: 支持 7天/30天/90天/自定义 时间范围"
+    ],
+    "focus_paths": [
+      "backend/src/services/analytics.service.ts",
+      "backend/src/controllers/analytics.controller.ts",
+      "frontend/src/pages/DashboardPage.tsx",
+      "frontend/src/components/business/charts/"
+    ],
+    "acceptance": [
+      "6 个分析 API 正常工作: 验证返回聚合数据",
+      "6 个图表正常渲染: 验证 ECharts 显示数据",
+      "日期筛选生效: 验证切换时间范围后数据更新",
+      "性能优化: 验证复杂聚合查询 < 500ms",
+      "响应式布局: 验证移动端图表自适应"
+    ],
+    "depends_on": ["IMPL-010"],
+    "artifacts": []
+  },
+  "flow_control": {
+    "pre_analysis": [],
+    "implementation_approach": [
+      {
+        "step": 1,
+        "title": "创建 AnalyticsService",
+        "description": "实现数据分析聚合查询",
+        "modification_points": [
+          "创建 1 个文件: backend/src/services/analytics.service.ts (400 行)",
+          "实现 6 个分析方法: 使用 Prisma 聚合查询和原生 SQL"
+        ],
+        "logic_flow": [
+          "getSalesTrend(startDate, endDate): 按日期分组统计订单数和销售额",
+          "SELECT DATE(createdAt) as date, COUNT(*) as orderCount, SUM(totalAmount) as revenue FROM orders WHERE createdAt BETWEEN :start AND :end GROUP BY date",
+          "getChannelPerformance: 按渠道分组统计订单数、销售额、佣金",
+          "getProductRanking: 按产品统计销量 (从 OrderItem 聚合), TOP 10",
+          "getRevenueByChannel: 树形结构渠道收入 (递归查询渠道层级)",
+          "getOrderStatusDistribution: 按订单状态统计数量",
+          "getSummary: 综合统计 (总订单、总销售额、总佣金、活跃渠道数)",
+          "所有方法支持 startDate, endDate 参数"
+        ],
+        "depends_on": [],
+        "output": "analytics_service"
+      },
+      {
+        "step": 2,
+        "title": "创建 AnalyticsController 和路由",
+        "description": "实现 6 个分析 API 端点",
+        "modification_points": [
+          "创建 2 个文件: [backend/src/controllers/analytics.controller.ts (150 行), backend/src/routes/analytics.route.ts (60 行)]"
+        ],
+        "logic_flow": [
+          "所有端点支持 query: {startDate, endDate, channelId?}",
+          "权限: AGENT 只能查看自己渠道数据, ADMIN 全部",
+          "缓存: 使用 Redis 缓存结果 (TTL 15分钟)",
+          "getSalesTrend: GET /analytics/sales-trend",
+          "getChannelPerformance: GET /analytics/channel-performance",
+          "getProductRanking: GET /analytics/product-ranking",
+          "getRevenueByChannel: GET /analytics/revenue-by-channel",
+          "getOrderStatusDistribution: GET /analytics/order-status-distribution",
+          "getSummary: GET /analytics/summary"
+        ],
+        "depends_on": [1],
+        "output": "analytics_endpoints"
+      },
+      {
+        "step": 3,
+        "title": "前端安装 ECharts 依赖",
+        "description": "集成图表库",
+        "modification_points": [
+          "安装 2 个依赖: npm install @ant-design/charts echarts",
+          "创建 1 个工具文件: frontend/src/utils/chartConfig.ts (ECharts 主题配置, 50 行)"
+        ],
+        "logic_flow": [
+          "安装 @ant-design/charts (Ant Design 图表库, 基于 G2Plot)",
+          "安装 echarts (备用, 复杂图表)",
+          "chartConfig.ts: 定义统一图表主题 (颜色、字体、网格)",
+          "导出 defaultChartConfig"
+        ],
+        "depends_on": [],
+        "output": "chart_setup"
+      },
+      {
+        "step": 4,
+        "title": "实现图表组件",
+        "description": "创建 6 个图表组件",
+        "modification_points": [
+          "创建 7 个文件: [SalesTrendChart.tsx (100行), ChannelPerformanceChart.tsx (80行), ProductRankingChart.tsx (80行), RevenueTreeChart.tsx (100行), OrderStatusChart.tsx (70行), StatisticsCards.tsx (100行), DateRangeSelector.tsx (60行)]"
+        ],
+        "logic_flow": [
+          "SalesTrendChart: Line 折线图 (x: date, y: revenue, series: orderCount)",
+          "使用 @ant-design/charts Line 组件",
+          "ChannelPerformanceChart: Column 柱状图 (x: channelName, y: revenue)",
+          "ProductRankingChart: Pie 饼图 (category: productName, value: quantity)",
+          "RevenueTreeChart: Treemap 树图 (hierarchy: channel tree, value: revenue)",
+          "OrderStatusChart: Ring 环形图 (category: status, value: count)",
+          "StatisticsCards: Row + Col + Card + Statistic (4 个统计卡片)",
+          "DateRangeSelector: Radio.Group (7天, 30天, 90天, 自定义) + RangePicker",
+          "所有图表组件接收 data prop 和 loading prop"
+        ],
+        "depends_on": [3],
+        "output": "chart_components"
+      },
+      {
+        "step": 5,
+        "title": "重构 DashboardPage",
+        "description": "集成所有图表组件",
+        "modification_points": [
+          "修改 1 个文件: frontend/src/pages/DashboardPage.tsx (重写, 500 行)",
+          "布局: 顶部日期筛选 + 统计卡片 + 6 个图表 (Grid 布局)"
+        ],
+        "logic_flow": [
+          "useState: {dateRange: [startDate, endDate], period: '30d'}",
+          "DateRangeSelector: 选择时间范围, 更新 dateRange",
+          "useQuery 6 个分析 API, 依赖 dateRange:",
+          "1. useQuery('sales-trend', () => analyticsService.getSalesTrend(dateRange))",
+          "2-6. 类似",
+          "布局结构:",
+          "Row 1: DateRangeSelector",
+          "Row 2: StatisticsCards (4 columns)",
+          "Row 3: SalesTrendChart (full width)",
+          "Row 4: ChannelPerformanceChart (50%) + ProductRankingChart (50%)",
+          "Row 5: RevenueTreeChart (50%) + OrderStatusChart (50%)",
+          "所有图表使用 Card 包裹, 标题 + loading + 图表组件"
+        ],
+        "depends_on": [4],
+        "output": "dashboard_integration"
+      },
+      {
+        "step": 6,
+        "title": "实现数据缓存和优化",
+        "description": "后端 Redis 缓存 + 前端 React Query 缓存",
+        "modification_points": [
+          "修改 1 个文件: backend/src/controllers/analytics.controller.ts (添加 Redis 缓存, +40 行)",
+          "配置 React Query: staleTime 5 分钟"
+        ],
+        "logic_flow": [
+          "后端缓存逻辑:",
+          "1. 生成缓存 key: `analytics:${endpoint}:${startDate}:${endDate}:${channelId}`",
+          "2. 检查 Redis 缓存, 如果存在直接返回",
+          "3. 如果不存在, 执行查询",
+          "4. 存储结果到 Redis (TTL 15 分钟)",
+          "5. 返回结果",
+          "前端缓存: React Query staleTime: 5 * 60 * 1000 (5 分钟)"
+        ],
+        "depends_on": [2, 5],
+        "output": "caching"
+      },
+      {
+        "step": 7,
+        "title": "实现导出功能",
+        "description": "导出图表为图片和导出数据为 Excel",
+        "modification_points": [
+          "创建 2 个工具函数: [exportChartAsImage (html2canvas), exportDataAsExcel (xlsx)]",
+          "在 DashboardPage 添加导出按钮"
+        ],
+        "logic_flow": [
+          "exportChartAsImage: 使用 html2canvas 将图表 DOM 转为 Canvas, 下载为 PNG",
+          "exportDataAsExcel: 使用 xlsx 将分析数据导出为 Excel",
+          "DashboardPage 添加工具栏: '导出所有图表' 按钮, '导出数据' 按钮"
+        ],
+        "depends_on": [5],
+        "output": "export_features"
+      },
+      {
+        "step": 8,
+        "title": "测试",
+        "description": "测试分析功能和图表",
+        "modification_points": [
+          "执行 8 个测试: [6 个分析 API, 图表渲染, 日期筛选, 缓存, 导出, 权限, 性能]"
+        ],
+        "logic_flow": [
+          "后端测试: 使用不同时间范围调用 6 个分析 API",
+          "验证返回数据格式和聚合结果正确",
+          "缓存测试: 第二次请求应从 Redis 返回",
+          "前端测试: 访问 Dashboard",
+          "验证 6 个图表正确渲染",
+          "切换日期范围 (7天 → 30天), 验证图表更新",
+          "导出测试: 点击导出按钮, 验证生成 PNG 和 Excel",
+          "权限测试: AGENT 登录, 验证只看到自己渠道数据",
+          "性能测试: 使用 Chrome DevTools 测量 API 响应时间 (应 < 500ms)"
+        ],
+        "depends_on": [2, 6, 7],
+        "output": "test_results"
+      }
+    ],
+    "target_files": [
+      "backend/src/services/analytics.service.ts",
+      "backend/src/controllers/analytics.controller.ts",
+      "backend/src/routes/analytics.route.ts",
+      "frontend/src/services/analyticsService.ts",
+      "frontend/src/pages/DashboardPage.tsx",
+      "frontend/src/components/business/charts/SalesTrendChart.tsx",
+      "frontend/src/components/business/charts/ChannelPerformanceChart.tsx",
+      "frontend/src/components/business/charts/ProductRankingChart.tsx",
+      "frontend/src/components/business/charts/RevenueTreeChart.tsx",
+      "frontend/src/components/business/charts/OrderStatusChart.tsx",
+      "frontend/src/components/business/charts/StatisticsCards.tsx",
+      "frontend/src/components/business/DateRangeSelector.tsx",
+      "frontend/src/utils/chartConfig.ts",
+      "frontend/src/utils/export.ts"
+    ]
+  }
+}

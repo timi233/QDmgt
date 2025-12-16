@@ -1,0 +1,295 @@
+{
+  "id": "IMPL-005",
+  "title": "用户认证模块（注册/登录/JWT）",
+  "status": "pending",
+  "meta": {
+    "type": "feature",
+    "agent": "@code-developer",
+    "sprint": 1,
+    "priority": "high",
+    "estimated_hours": 16
+  },
+  "context": {
+    "requirements": [
+      "实现 6 个后端 API 端点: [POST /register, POST /login, POST /logout, POST /refresh, GET /me, PUT /profile]",
+      "创建 3 个 Service 类: [AuthService (JWT 生成/验证), UserService (用户 CRUD), TokenService (Token 管理)]",
+      "实现 1 个认证中间件: authMiddleware (JWT 验证并注入 req.user)",
+      "前端实现 4 个功能: [注册表单, 登录表单, 自动 token 刷新, 受保护路由]",
+      "配置 2 个 Token 策略: [Access Token (15 分钟), Refresh Token (7 天)]"
+    ],
+    "focus_paths": [
+      "backend/src/routes/auth.route.ts",
+      "backend/src/controllers/auth.controller.ts",
+      "backend/src/services/auth.service.ts",
+      "backend/src/middlewares/authMiddleware.ts",
+      "frontend/src/pages/LoginPage.tsx",
+      "frontend/src/services/authService.ts"
+    ],
+    "acceptance": [
+      "6 个 API 端点正常工作: 验证 Postman 测试所有端点返回预期结果",
+      "JWT Token 正确生成: 验证 /login 返回 accessToken 和 refreshToken",
+      "认证中间件生效: 验证未认证访问 /me 返回 401",
+      "前端登录流程完整: 验证登录成功后跳转 /dashboard 且 token 存储在 localStorage",
+      "Token 自动刷新: 验证 Access Token 过期后自动调用 /refresh"
+    ],
+    "depends_on": ["IMPL-002", "IMPL-003"],
+    "artifacts": [
+      {
+        "type": "analysis",
+        "path": ".workflow/.brainstorming/api-designer/analysis.md",
+        "priority": "highest"
+      }
+    ]
+  },
+  "flow_control": {
+    "pre_analysis": [
+      {
+        "step": "load_api_spec",
+        "commands": [
+          "bash(ls .workflow/.brainstorming/api-designer/analysis.md 2>/dev/null)",
+          "Read(.workflow/.brainstorming/api-designer/analysis.md)"
+        ],
+        "output_to": "api_requirements",
+        "on_error": "skip_optional"
+      }
+    ],
+    "implementation_approach": [
+      {
+        "step": 1,
+        "title": "创建认证相关 Service 层",
+        "description": "实现 AuthService, UserService, TokenService 共 3 个类",
+        "modification_points": [
+          "创建 3 个文件: [backend/src/services/auth.service.ts (150 行), backend/src/services/user.service.ts (120 行), backend/src/services/token.service.ts (100 行)]",
+          "AuthService: 5 个方法 [register(创建用户+hash密码), login(验证密码+生成token), logout(吊销token), validateUser(验证凭证), hashPassword(bcrypt)]",
+          "TokenService: 4 个方法 [generateAccessToken(JWT sign, 15min), generateRefreshToken(JWT sign, 7days), verifyToken(JWT verify), revokeToken(存入 Redis 黑名单)]",
+          "UserService: 4 个方法 [createUser(Prisma create), findByEmail(Prisma findUnique), findById(Prisma findUnique), updateUser(Prisma update)]"
+        ],
+        "logic_flow": [
+          "auth.service.ts: 导入 bcrypt, UserService, TokenService",
+          "实现 register: 检查邮箱唯一性, hash 密码(bcrypt.hash, 10 rounds), 调用 UserService.createUser",
+          "实现 login: UserService.findByEmail, bcrypt.compare 验证密码, 生成 Access + Refresh Token",
+          "实现 logout: 将 token 加入 Redis 黑名单 (key: `revoked:${token}`, expire: token 剩余时间)",
+          "token.service.ts: 导入 jsonwebtoken, config",
+          "实现 generateAccessToken: jwt.sign({userId, email, role}, JWT_SECRET, {expiresIn: '15m'})",
+          "实现 generateRefreshToken: jwt.sign({userId}, JWT_REFRESH_SECRET, {expiresIn: '7d'})",
+          "实现 verifyToken: jwt.verify, 检查 Redis 黑名单",
+          "user.service.ts: 导入 prisma",
+          "实现 CRUD 方法 (使用 Prisma Client)"
+        ],
+        "depends_on": [],
+        "output": "auth_services"
+      },
+      {
+        "step": 2,
+        "title": "实现认证中间件",
+        "description": "完善 authMiddleware.ts 实现 JWT 验证",
+        "modification_points": [
+          "修改 1 个文件: backend/src/middlewares/authMiddleware.ts (替换占位代码, 80 行)",
+          "实现 2 个功能: [extractToken(从 Authorization header 提取), verifyAndInjectUser(验证 JWT 并注入 req.user)]",
+          "添加 1 个类型定义: 扩展 Express Request 接口 (添加 user 字段)"
+        ],
+        "logic_flow": [
+          "从请求头提取 token (Authorization: Bearer <token>)",
+          "调用 TokenService.verifyToken 验证 token",
+          "如果无效: 抛出 AuthenticationError (401)",
+          "如果有效: 解析 payload, 调用 UserService.findById",
+          "将 user 对象注入 req.user",
+          "调用 next() 继续",
+          "扩展 Express.Request 接口 (types/express.d.ts)",
+          "导出 authMiddleware 和 optionalAuth (可选认证)"
+        ],
+        "depends_on": [1],
+        "output": "auth_middleware"
+      },
+      {
+        "step": 3,
+        "title": "创建认证 Controller 和路由",
+        "description": "实现 6 个 API 端点",
+        "modification_points": [
+          "创建 2 个文件: [backend/src/controllers/auth.controller.ts (200 行), backend/src/routes/auth.route.ts (60 行)]",
+          "Controller: 6 个方法 [register, login, logout, refresh, getMe, updateProfile]",
+          "Route: 6 个端点 [POST /register, POST /login, POST /logout (需认证), POST /refresh, GET /me (需认证), PUT /profile (需认证)]"
+        ],
+        "logic_flow": [
+          "auth.controller.ts: 导入 AuthService, asyncHandler",
+          "register: 请求校验(Zod), 调用 AuthService.register, 返回 201 + user(排除密码)",
+          "login: 请求校验, 调用 AuthService.login, 返回 {user, accessToken, refreshToken}",
+          "logout: 获取 req.user, 调用 AuthService.logout, 返回 200",
+          "refresh: 从 body 获取 refreshToken, 验证并生成新 accessToken, 返回 {accessToken}",
+          "getMe: 返回 req.user (由 authMiddleware 注入)",
+          "updateProfile: 请求校验, 调用 UserService.updateUser, 返回更新后的 user",
+          "auth.route.ts: 创建 Express Router",
+          "定义 6 个路由并应用对应 controller",
+          "POST /register, POST /login (公开)",
+          "POST /logout, GET /me, PUT /profile (应用 authMiddleware)",
+          "POST /refresh (公开, 但需 refreshToken 验证)"
+        ],
+        "depends_on": [1, 2],
+        "output": "auth_endpoints"
+      },
+      {
+        "step": 4,
+        "title": "创建请求校验 Schema",
+        "description": "使用 Zod 定义 3 个校验 Schema",
+        "modification_points": [
+          "创建 1 个文件: backend/src/validators/auth.validator.ts (80 行)",
+          "定义 3 个 Schema: [registerSchema (email, password, name, phone), loginSchema (email, password), updateProfileSchema (name, phone)]",
+          "导出 3 个 validator 中间件: [validateRegister, validateLogin, validateUpdateProfile]"
+        ],
+        "logic_flow": [
+          "导入 Zod",
+          "定义 registerSchema: z.object({email: z.string().email(), password: z.string().min(8), name: z.string().min(2), phone: z.string().optional()})",
+          "定义 loginSchema: z.object({email: z.string().email(), password: z.string()})",
+          "定义 updateProfileSchema: z.object({name: z.string().optional(), phone: z.string().optional()})",
+          "使用 validationMiddleware 工厂函数创建验证中间件",
+          "应用到 auth.route.ts 路由"
+        ],
+        "depends_on": [3],
+        "output": "validation_schemas"
+      },
+      {
+        "step": 5,
+        "title": "实现前端登录页面",
+        "description": "完善 LoginPage.tsx 实现真实登录逻辑",
+        "modification_points": [
+          "修改 1 个文件: frontend/src/pages/LoginPage.tsx (替换占位代码, 200 行)",
+          "实现 2 个功能: [登录表单 (Ant Design Form), 注册表单 (Modal)]",
+          "集成 React Query: useMutation 调用 authService.login"
+        ],
+        "logic_flow": [
+          "使用 Ant Design Form 组件",
+          "表单字段: email (rules: required, email), password (rules: required, min 8)",
+          "使用 useMutation 调用 authService.login",
+          "onSuccess: 保存 token 到 authStore, 跳转到 /dashboard",
+          "onError: 显示错误 message (Ant Design message.error)",
+          "添加 '还没有账号? 注册' 链接 (打开注册 Modal)",
+          "注册 Modal: Form 表单 (email, password, confirmPassword, name, phone)",
+          "useMutation 调用 authService.register",
+          "注册成功后自动登录"
+        ],
+        "depends_on": [],
+        "output": "login_page"
+      },
+      {
+        "step": 6,
+        "title": "实现前端 authService 真实逻辑",
+        "description": "替换 mock 逻辑为真实 API 调用",
+        "modification_points": [
+          "修改 1 个文件: frontend/src/services/authService.ts (替换占位代码, 120 行)",
+          "实现 6 个方法: [register, login, logout, refreshToken, getCurrentUser, updateProfile]",
+          "使用 axios 实例调用后端 API"
+        ],
+        "logic_flow": [
+          "导入 axios (from lib/axios.ts)",
+          "register: POST /auth/register, 返回 User",
+          "login: POST /auth/login, 返回 {user, accessToken, refreshToken}",
+          "logout: POST /auth/logout (需 Authorization header)",
+          "refreshToken: POST /auth/refresh, body: {refreshToken}",
+          "getCurrentUser: GET /auth/me (需 Authorization header)",
+          "updateProfile: PUT /auth/profile, body: {name, phone}",
+          "所有方法返回 Promise, 错误自动由 axios 拦截器处理"
+        ],
+        "depends_on": [5],
+        "output": "auth_service_frontend"
+      },
+      {
+        "step": 7,
+        "title": "实现 authStore 真实逻辑",
+        "description": "完善 authStore 集成 authService",
+        "modification_points": [
+          "修改 1 个文件: frontend/src/stores/authStore.ts (替换占位代码, 120 行)",
+          "实现 5 个 actions: [login (调用 authService), logout (清除状态), refreshToken (调用 authService), setUser, initAuth (从 localStorage 恢复)]",
+          "集成 zustand persist 中间件: 持久化 token 到 localStorage"
+        ],
+        "logic_flow": [
+          "导入 authService",
+          "login action: 调用 authService.login, 保存 user + token + refreshToken 到 state, 持久化到 localStorage",
+          "logout action: 调用 authService.logout, 清除 state, 清除 localStorage",
+          "refreshToken action: 调用 authService.refreshToken, 更新 accessToken",
+          "initAuth action: 从 localStorage 读取 token, 如果存在调用 authService.getCurrentUser 恢复用户状态",
+          "使用 persist middleware: persist(storeCreator, {name: 'auth-storage', partialize: (state) => ({token, refreshToken})})",
+          "在 main.tsx 调用 authStore.initAuth() 初始化"
+        ],
+        "depends_on": [6],
+        "output": "auth_store_logic"
+      },
+      {
+        "step": 8,
+        "title": "实现 Token 自动刷新",
+        "description": "在 axios 拦截器实现 token 刷新逻辑",
+        "modification_points": [
+          "修改 1 个文件: frontend/src/lib/axios.ts (添加响应拦截器逻辑, +40 行)",
+          "实现 1 个功能: 401 错误自动刷新 token 并重试请求"
+        ],
+        "logic_flow": [
+          "在 axios 响应拦截器中捕获 401 错误",
+          "检查是否是 /auth/refresh 请求 (避免无限循环)",
+          "从 authStore 获取 refreshToken",
+          "调用 authService.refreshToken",
+          "如果成功: 更新 authStore.accessToken, 重试原请求 (使用新 token)",
+          "如果失败: 调用 authStore.logout, 跳转到 /login",
+          "使用队列机制避免并发请求重复刷新 token"
+        ],
+        "depends_on": [7],
+        "output": "token_refresh"
+      },
+      {
+        "step": 9,
+        "title": "完善 PrivateRoute 路由守卫",
+        "description": "实现认证检查和重定向",
+        "modification_points": [
+          "修改 1 个文件: frontend/src/router/PrivateRoute.tsx (完善逻辑, 60 行)",
+          "实现 2 个功能: [检查 authStore.isAuthenticated, 未认证重定向到 /login]"
+        ],
+        "logic_flow": [
+          "从 authStore 读取 isAuthenticated",
+          "如果已认证: 渲染 <Outlet /> (子路由)",
+          "如果未认证: <Navigate to='/login' replace />",
+          "保存原始 URL 到 state (登录后自动跳回)",
+          "在 LoginPage 登录成功后: 检查 location.state.from, 跳转回原始 URL"
+        ],
+        "depends_on": [7],
+        "output": "route_guard"
+      },
+      {
+        "step": 10,
+        "title": "集成测试和验证",
+        "description": "测试完整认证流程",
+        "modification_points": [
+          "执行 10 个测试用例: [注册新用户, 登录, 访问受保护路由, 退出登录, Token 刷新, 未认证访问, 错误密码, 重复邮箱, Profile 更新, Token 过期]"
+        ],
+        "logic_flow": [
+          "启动后端服务器 (npm run dev)",
+          "启动前端服务器 (npm run dev)",
+          "测试注册: POST /api/v1/auth/register (email: test@example.com)",
+          "测试登录: POST /api/v1/auth/login, 验证返回 accessToken",
+          "测试 /me: GET /api/v1/auth/me (带 token), 验证返回用户信息",
+          "测试未认证: GET /api/v1/auth/me (无 token), 验证返回 401",
+          "前端测试: 访问 /dashboard (未登录), 验证重定向到 /login",
+          "前端登录: 输入正确凭证, 验证跳转到 /dashboard",
+          "前端退出: 点击退出按钮, 验证清除 token 并跳转到 /login",
+          "Token 刷新测试: 等待 Access Token 过期 (或手动修改过期时间为 1 分钟), 验证自动刷新",
+          "检查所有测试通过"
+        ],
+        "depends_on": [3, 8, 9],
+        "output": "test_results"
+      }
+    ],
+    "target_files": [
+      "backend/src/services/auth.service.ts",
+      "backend/src/services/user.service.ts",
+      "backend/src/services/token.service.ts",
+      "backend/src/middlewares/authMiddleware.ts",
+      "backend/src/controllers/auth.controller.ts",
+      "backend/src/routes/auth.route.ts",
+      "backend/src/validators/auth.validator.ts",
+      "backend/src/types/express.d.ts",
+      "frontend/src/pages/LoginPage.tsx",
+      "frontend/src/services/authService.ts",
+      "frontend/src/stores/authStore.ts",
+      "frontend/src/lib/axios.ts",
+      "frontend/src/router/PrivateRoute.tsx",
+      "frontend/src/main.tsx"
+    ]
+  }
+}

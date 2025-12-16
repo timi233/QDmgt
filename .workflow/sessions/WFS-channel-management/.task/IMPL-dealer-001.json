@@ -1,0 +1,201 @@
+{
+  "id": "IMPL-dealer-001",
+  "title": "分销商管理模块实现(含分步表单)",
+  "status": "completed",
+  "priority": "high",
+  "meta": {
+    "type": "feature",
+    "agent": "@code-developer",
+    "estimated_complexity": "complex"
+  },
+  "context": {
+    "requirements": [
+      "实现5个分销商API: [POST /api/distributors创建, GET /api/distributors列表查询, GET /api/distributors/:id详情, PUT /api/distributors/:id更新, DELETE /api/distributors/:id删除]",
+      "创建3步分步表单前端组件: [第1步基础信息(名称/地区/合作等级), 第2步联系方式(联系人/电话/授信额度/标签), 第3步可选信息(历史业绩/备注)]",
+      "实现8个表单验证规则: [名称2-50字符, 名称唯一性检查, 电话号码格式验证, 授信额度非负数, 标签最多5个, 地区三级联动, 必填字段检查, 特殊字符过滤]",
+      "创建4个前端页面: [分销商列表页DistributorList.tsx, 新增分销商页DistributorCreate.tsx(含分步表单), 分销商详情页DistributorDetail.tsx, 编辑分销商页DistributorEdit.tsx]",
+      "实现2个权限控制: [销售仅可查看/编辑自己负责的分销商(owner_user_id过滤), 领导可查看/编辑所有分销商]"
+    ],
+    "focus_paths": [
+      "backend/controllers/distributorController.ts",
+      "backend/models/distributor.ts",
+      "backend/services/distributorService.ts",
+      "src/pages/distributors/",
+      "src/components/DistributorForm/"
+    ],
+    "acceptance": [
+      "5个分销商API正常工作: 验证by curl测试CRUD操作返回正确数据",
+      "分步表单正常运行: 验证by 完成3步表单提交成功创建分销商, 前2步可保存, 第3步可跳过",
+      "8个验证规则生效: 验证by 测试名称长度/唯一性/电话格式/授信额度/标签数量/地区联动/必填字段/特殊字符",
+      "权限隔离有效: 验证by sales用户GET /api/distributors仅返回自己负责的, leader返回全部",
+      "4个前端页面渲染正常: 验证by 访问列表/创建/详情/编辑页面无错误"
+    ],
+    "depends_on": [
+      "IMPL-user-001"
+    ],
+    "artifacts": [
+      {
+        "type": "synthesis_specification",
+        "path": ".workflow/sessions/WFS-channel-management/brainstorm/guidance-specification.md",
+        "priority": "highest"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/sessions/WFS-channel-management/brainstorm/ux-expert/analysis.md",
+        "priority": "high"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/sessions/WFS-channel-management/brainstorm/ui-designer/analysis.md",
+        "priority": "high"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/sessions/WFS-channel-management/brainstorm/data-architect/analysis.md",
+        "priority": "medium"
+      }
+    ]
+  },
+  "flow_control": {
+    "pre_analysis": [
+      {
+        "step": "load_ux_analysis",
+        "commands": [
+          "Read('D:\\渠道\\.workflow\\sessions\\WFS-channel-management\\brainstorm\\ux-expert\\analysis.md', offset=200, limit=150)"
+        ],
+        "output_to": "ux_form_design",
+        "on_error": "skip_optional"
+      },
+      {
+        "step": "load_ui_design",
+        "commands": [
+          "Read('D:\\渠道\\.workflow\\sessions\\WFS-channel-management\\brainstorm\\ui-designer\\analysis.md', offset=500, limit=200)"
+        ],
+        "output_to": "ui_form_components",
+        "on_error": "skip_optional"
+      }
+    ],
+    "implementation_approach": [
+      {
+        "step": 1,
+        "title": "创建分销商数据模型和API",
+        "description": "实现后端分销商CRUD的5个API端点",
+        "modification_points": [
+          "创建backend/models/distributor.ts: 定义Sequelize模型,包含id, name, region, contact_person, phone, cooperation_level, credit_limit, tags, owner_user_id等12个字段",
+          "创建backend/controllers/distributorController.ts: 实现create(), getAll(), getById(), update(), delete()五个方法",
+          "创建backend/services/distributorService.ts: 实现业务逻辑,包含权限过滤(owner_user_id), 唯一性检查, 数据验证",
+          "修改backend/routes/distributorRoutes.ts: 定义5条路由,应用authMiddleware和roleMiddleware"
+        ],
+        "logic_flow": [
+          "在distributor.ts中定义Sequelize模型: 字段类型、默认值、验证规则",
+          "为owner_user_id添加外键关联users表",
+          "为name+region组合添加唯一索引确保同地区分销商名称唯一",
+          "在distributorService.ts中实现权限过滤: 根据req.user.role决定是否添加owner_user_id=current_user条件",
+          "在distributorController.ts的create()中: 验证输入 → 检查名称唯一性 → 设置owner_user_id为当前用户 → 保存 → 记录事件流",
+          "在getAll()中: 应用权限过滤 → 支持分页和筛选 → 返回列表",
+          "在getById()中: 验证权限(销售仅可查看自己的) → 返回详情",
+          "在update()中: 验证权限 → 更新字段 → 记录事件流",
+          "在delete()中: 验证权限 → 软删除(设置deleted_at) → 记录事件流",
+          "测试5个API: 使用curl验证CRUD操作和权限隔离"
+        ],
+        "depends_on": [],
+        "output": "distributor_api"
+      },
+      {
+        "step": 2,
+        "title": "实现分步表单组件(3步)",
+        "description": "创建分步表单前端组件,支持3步录入和草稿保存",
+        "modification_points": [
+          "创建src/components/DistributorForm/StepForm.tsx: 分步表单容器组件,管理3个步骤的状态",
+          "创建src/components/DistributorForm/Step1BasicInfo.tsx: 第1步表单(名称/地区/合作等级)",
+          "创建src/components/DistributorForm/Step2ContactInfo.tsx: 第2步表单(联系人/电话/授信额度/标签)",
+          "创建src/components/DistributorForm/Step3OptionalInfo.tsx: 第3步表单(历史业绩/备注)"
+        ],
+        "logic_flow": [
+          "在StepForm.tsx中实现步骤管理: 当前步骤状态(1/2/3), 下一步/上一步逻辑, 表单数据合并",
+          "实现步骤指示器: 使用Ant Design Steps组件,显示进度(已完成/当前/未完成)",
+          "在Step1中实现基础信息表单: 名称输入框(带字符计数), 地区三级联动选择器, 合作等级单选按钮",
+          "实现第1步验证: 名称2-50字符+唯一性异步检查(防抖300ms), 地区必选, 合作等级必选",
+          "在Step2中实现联系信息表单: 联系人输入框, 电话输入框(自动格式化), 授信额度数字输入框(单位:万元), 标签多选(最多5个)",
+          "实现第2步验证: 联系人2-20字符, 电话格式校验, 授信额度非负, 标签数量<=5",
+          "在Step3中实现可选信息表单: 历史业绩多行文本框, 备注多行文本框",
+          "第3步可跳过: 提供\"跳过此步直接保存\"按钮",
+          "实现草稿自动保存: 用户离开页面前弹出确认框\"保存草稿?\", 使用localStorage暂存",
+          "测试分步表单: 完整流程(3步全填), 快速流程(前2步保存), 草稿恢复"
+        ],
+        "depends_on": [
+          1
+        ],
+        "output": "step_form_component"
+      },
+      {
+        "step": 3,
+        "title": "实现表单验证规则(8个)",
+        "description": "创建前后端一致的表单验证规则",
+        "modification_points": [
+          "创建src/utils/validators.ts: 实现8个前端验证函数",
+          "创建backend/utils/validators.ts: 实现8个后端验证函数",
+          "在表单组件中应用前端验证",
+          "在API控制器中应用后端验证"
+        ],
+        "logic_flow": [
+          "实现名称长度验证: validateNameLength(name) 检查2-50字符",
+          "实现名称唯一性验证: validateNameUniqueness(name, region) 异步调用API检查",
+          "实现电话格式验证: validatePhoneFormat(phone) 支持11位手机/固话/400电话",
+          "实现授信额度验证: validateCreditLimit(amount) 检查非负数+范围0-999999",
+          "实现标签数量验证: validateTagsCount(tags) 检查数组长度<=5",
+          "实现地区联动验证: validateRegion(province, city, district) 检查三级完整",
+          "实现必填字段验证: validateRequired(fields) 检查所有必填字段非空",
+          "实现特殊字符过滤: filterSpecialChars(text) 过滤`~!@#$%^&*()`等",
+          "在Step1/Step2组件中绑定验证: 使用Ant Design Form的rules属性",
+          "在distributorController.ts中应用后端验证: create()和update()方法执行完整验证",
+          "测试8个验证规则: 边界值测试, 异常输入测试, 前后端一致性测试"
+        ],
+        "depends_on": [
+          2
+        ],
+        "output": "validation_rules"
+      },
+      {
+        "step": 4,
+        "title": "创建分销商管理前端页面(4个)",
+        "description": "实现列表/创建/详情/编辑4个页面",
+        "modification_points": [
+          "创建src/pages/distributors/DistributorList.tsx: 分销商列表页(表格+筛选器)",
+          "创建src/pages/distributors/DistributorCreate.tsx: 新增分销商页(嵌入StepForm组件)",
+          "创建src/pages/distributors/DistributorDetail.tsx: 分销商详情页(展示信息+关联任务)",
+          "创建src/pages/distributors/DistributorEdit.tsx: 编辑分销商页(表单预填充)"
+        ],
+        "logic_flow": [
+          "在DistributorList.tsx中实现列表: 调用GET /api/distributors → 展示Ant Design Table → 支持分页(每页20条)",
+          "实现筛选器: 地区筛选(级联), 状态筛选(多选), 合作等级筛选(单选), 搜索框(名称/联系人)",
+          "实现排序: 点击表头按名称/地区/合作等级/创建时间排序",
+          "在DistributorCreate.tsx中嵌入StepForm组件: 表单提交 → 调用POST /api/distributors → 成功后跳转到详情页",
+          "在DistributorDetail.tsx中展示详情: 调用GET /api/distributors/:id → 显示基础信息卡片 → 显示关联任务列表 → 提供编辑和删除按钮",
+          "在DistributorEdit.tsx中实现编辑: 加载分销商数据 → 预填充表单 → 提交 → 调用PUT /api/distributors/:id → 成功后刷新详情页",
+          "测试4个页面: 渲染正常, 交互流畅, 数据加载正确, 权限隔离生效"
+        ],
+        "depends_on": [
+          3
+        ],
+        "output": "distributor_pages"
+      }
+    ],
+    "target_files": [
+      "backend/models/distributor.ts",
+      "backend/controllers/distributorController.ts",
+      "backend/services/distributorService.ts",
+      "backend/routes/distributorRoutes.ts",
+      "backend/utils/validators.ts",
+      "src/components/DistributorForm/StepForm.tsx",
+      "src/components/DistributorForm/Step1BasicInfo.tsx",
+      "src/components/DistributorForm/Step2ContactInfo.tsx",
+      "src/components/DistributorForm/Step3OptionalInfo.tsx",
+      "src/utils/validators.ts",
+      "src/pages/distributors/DistributorList.tsx",
+      "src/pages/distributors/DistributorCreate.tsx",
+      "src/pages/distributors/DistributorDetail.tsx",
+      "src/pages/distributors/DistributorEdit.tsx"
+    ]
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "name": "channel-management-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "全栈渠道管理平台",
+  "scripts": {
+    "dev": "docker-compose up -d",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "native:frontend": "cd frontend && cp .env.native .env.local && npm run dev",
+    "native:backend": "cp .env.native .env && cd backend && npm run dev",
+    "native:start": "concurrently \"npm run native:backend\" \"npm run native:frontend\"",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "db:migrate": "cd backend && npm run db:migrate",
+    "db:seed": "cd backend && npm run db:seed",
+    "db:studio": "cd backend && npm run db:studio",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:ps": "docker-compose ps",
+    "clean": "docker-compose down -v && rm -rf frontend/node_modules backend/node_modules node_modules"
+  },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "keywords": [
+    "channel-management",
+    "react",
+    "express",
+    "typescript",
+    "postgresql"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "bcrypt": "^6.0.0"
+  }
+}

@@ -1,0 +1,313 @@
+{
+  "id": "IMPL-004",
+  "title": "前端基础架构搭建（React + 路由 + 状态管理）",
+  "status": "pending",
+  "meta": {
+    "type": "infrastructure",
+    "agent": "@code-developer",
+    "sprint": 1,
+    "priority": "high",
+    "estimated_hours": 16
+  },
+  "context": {
+    "requirements": [
+      "配置 5 个路由页面: [登录页, 主布局, 渠道管理, 产品管理, 订单管理]",
+      "创建 8 个通用组件: [Layout, Header, Sidebar, Breadcrumb, LoadingSpinner, ErrorBoundary, PrivateRoute, Table]",
+      "实现 3 个 Zustand Store: [authStore, uiStore, userStore]",
+      "配置 React Query: [queryClient, 默认配置, devtools]",
+      "创建 4 个 API Service: [authService, channelService (占位), productService (占位), orderService (占位)]"
+    ],
+    "focus_paths": [
+      "frontend/src/",
+      "frontend/src/components/",
+      "frontend/src/pages/",
+      "frontend/src/stores/",
+      "frontend/src/services/"
+    ],
+    "acceptance": [
+      "5 个页面路由正常访问: 验证访问 /, /login, /channels, /products, /orders 无 404",
+      "Zustand Store 正常工作: 验证 Redux DevTools 显示 3 个 store",
+      "React Query 配置成功: 验证 React Query DevTools 可见",
+      "组件正常渲染: 验证 npm run dev 启动后页面无错误",
+      "TypeScript 编译通过: 验证 npm run build 成功"
+    ],
+    "depends_on": ["IMPL-001"],
+    "artifacts": [
+      {
+        "type": "analysis",
+        "path": ".workflow/.brainstorming/ui-designer/analysis.md",
+        "priority": "high"
+      },
+      {
+        "type": "analysis",
+        "path": ".workflow/.brainstorming/api-designer/analysis.md",
+        "priority": "medium"
+      }
+    ]
+  },
+  "flow_control": {
+    "pre_analysis": [
+      {
+        "step": "check_frontend_dependencies",
+        "commands": [
+          "bash(cd frontend && npm list react react-router-dom zustand @tanstack/react-query antd 2>/dev/null || echo 'Dependencies check')"
+        ],
+        "output_to": "dependency_status",
+        "on_error": "warn"
+      }
+    ],
+    "implementation_approach": [
+      {
+        "step": 1,
+        "title": "配置路由系统",
+        "description": "使用 React Router v6 创建路由配置",
+        "modification_points": [
+          "创建 3 个文件: [frontend/src/router/index.tsx (100 行), frontend/src/router/routes.tsx (60 行), frontend/src/router/PrivateRoute.tsx (40 行)]",
+          "定义 7 个路由: [/ (主页), /login (登录), /dashboard (看板), /channels (渠道), /products (产品), /orders (订单), /inventory (库存)]",
+          "实现 1 个路由守卫: PrivateRoute (检查认证状态)"
+        ],
+        "logic_flow": [
+          "创建 router/index.tsx 导出 router 配置",
+          "使用 createBrowserRouter 定义路由",
+          "配置嵌套路由 (主布局包含子路由)",
+          "实现 PrivateRoute 组件 (检查 authStore.isAuthenticated)",
+          "未认证重定向到 /login",
+          "配置路由懒加载 (React.lazy + Suspense)",
+          "添加 404 页面"
+        ],
+        "depends_on": [],
+        "output": "routing_system"
+      },
+      {
+        "step": 2,
+        "title": "创建 Zustand Stores",
+        "description": "实现 3 个全局状态管理 Store",
+        "modification_points": [
+          "创建 4 个文件: [frontend/src/stores/authStore.ts (80 行), frontend/src/stores/uiStore.ts (50 行), frontend/src/stores/userStore.ts (60 行), frontend/src/stores/index.ts (20 行)]",
+          "authStore: 6 个状态字段 [user, token, refreshToken, isAuthenticated, isLoading, error]",
+          "authStore: 5 个 actions [login (占位), logout, refreshToken (占位), setUser, clearError]",
+          "uiStore: 4 个状态字段 [sidebarCollapsed, theme, breadcrumbs, loading]",
+          "userStore: 3 个状态字段 [currentUser, permissions, preferences]"
+        ],
+        "logic_flow": [
+          "authStore.ts: 创建认证状态 store",
+          "定义 user, token, isAuthenticated 状态",
+          "实现 login action (占位, 返回 mock data)",
+          "实现 logout action (清除 token, 清除 localStorage)",
+          "实现 persist middleware (localStorage)",
+          "uiStore.ts: 创建 UI 状态 store",
+          "定义 sidebar, theme, breadcrumbs 状态",
+          "实现 toggleSidebar, setTheme, setBreadcrumbs actions",
+          "userStore.ts: 创建用户信息 store",
+          "stores/index.ts: 统一导出所有 stores"
+        ],
+        "depends_on": [],
+        "output": "state_stores"
+      },
+      {
+        "step": 3,
+        "title": "配置 React Query",
+        "description": "设置数据请求和缓存管理",
+        "modification_points": [
+          "创建 2 个文件: [frontend/src/lib/queryClient.ts (60 行), frontend/src/lib/axios.ts (80 行)]",
+          "配置 QueryClient: 3 个默认选项 [staleTime: 5min, cacheTime: 10min, retry: 1]",
+          "配置 Axios: 5 个拦截器逻辑 [baseURL, timeout, 请求拦截 (添加 token), 响应拦截 (处理错误), 401 自动刷新 token]"
+        ],
+        "logic_flow": [
+          "queryClient.ts: 创建 QueryClient 实例",
+          "配置 defaultOptions (queries, mutations)",
+          "设置错误重试策略",
+          "配置 React Query DevTools (仅开发环境)",
+          "axios.ts: 创建 axios 实例",
+          "设置 baseURL: import.meta.env.VITE_API_BASE_URL",
+          "设置 timeout: 10000ms",
+          "请求拦截器: 从 authStore 获取 token, 添加到 Authorization header",
+          "响应拦截器: 统一错误处理, 401 触发 token 刷新",
+          "导出 axios 实例供 services 使用"
+        ],
+        "depends_on": [2],
+        "output": "query_configuration"
+      },
+      {
+        "step": 4,
+        "title": "创建通用组件",
+        "description": "实现 8 个可复用 UI 组件",
+        "modification_points": [
+          "创建 8 个文件: [Layout.tsx (120 行), Header.tsx (80 行), Sidebar.tsx (100 行), Breadcrumb.tsx (50 行), LoadingSpinner.tsx (30 行), ErrorBoundary.tsx (70 行), PrivateRoute.tsx (已在 step 1), TableWrapper.tsx (60 行)]"
+        ],
+        "logic_flow": [
+          "Layout.tsx: 使用 Ant Design Layout 组件",
+          "集成 Header, Sidebar, Breadcrumb",
+          "响应式布局 (移动端自动收起侧边栏)",
+          "使用 Outlet 渲染子路由",
+          "Header.tsx: 顶部导航栏",
+          "显示 logo, 用户信息, 通知, 退出按钮",
+          "集成 Dropdown, Avatar 组件",
+          "Sidebar.tsx: 侧边栏菜单",
+          "使用 Ant Design Menu 组件",
+          "从 uiStore 读取 collapsed 状态",
+          "菜单项: 数据看板, 渠道管理, 产品管理, 订单管理, 库存管理",
+          "Breadcrumb.tsx: 面包屑导航 (从 uiStore 读取)",
+          "LoadingSpinner.tsx: 全局加载动画 (Ant Design Spin)",
+          "ErrorBoundary.tsx: React 错误边界",
+          "TableWrapper.tsx: 封装 Ant Design Table (默认分页、排序)"
+        ],
+        "depends_on": [2],
+        "output": "common_components"
+      },
+      {
+        "step": 5,
+        "title": "创建页面组件",
+        "description": "实现 5 个页面骨架",
+        "modification_points": [
+          "创建 6 个文件: [LoginPage.tsx (150 行), DashboardPage.tsx (80 行), ChannelsPage.tsx (60 行), ProductsPage.tsx (60 行), OrdersPage.tsx (60 行), NotFoundPage.tsx (40 行)]"
+        ],
+        "logic_flow": [
+          "LoginPage.tsx: 登录表单页面",
+          "使用 Ant Design Form, Input, Button",
+          "表单校验 (email 格式, 密码长度)",
+          "调用 authStore.login (占位功能)",
+          "登录成功跳转到 /dashboard",
+          "DashboardPage.tsx: 数据看板页面",
+          "占位内容: 欢迎信息, 统计卡片 (Ant Design Card, Statistic)",
+          "ChannelsPage.tsx: 渠道管理页面",
+          "占位内容: 标题, 按钮, 空表格",
+          "ProductsPage.tsx: 产品管理页面",
+          "占位内容: 标题, 按钮, 空表格",
+          "OrdersPage.tsx: 订单管理页面",
+          "占位内容: 标题, 按钮, 空表格",
+          "NotFoundPage.tsx: 404 页面 (Ant Design Result 组件)"
+        ],
+        "depends_on": [4],
+        "output": "page_components"
+      },
+      {
+        "step": 6,
+        "title": "创建 API Services",
+        "description": "封装 4 个 API 调用模块",
+        "modification_points": [
+          "创建 5 个文件: [authService.ts (100 行), channelService.ts (40 行, 占位), productService.ts (40 行, 占位), orderService.ts (40 行, 占位), types.ts (60 行)]",
+          "定义 12 个 TypeScript 类型: [User, LoginRequest, LoginResponse, Channel, Product, PricingRule, Order, OrderItem, Commission, ApiResponse<T>, PaginatedResponse<T>, ErrorResponse]"
+        ],
+        "logic_flow": [
+          "types.ts: 定义所有 API 响应类型",
+          "定义 ApiResponse<T> 通用响应格式",
+          "定义 PaginatedResponse<T> 分页响应格式",
+          "authService.ts: 认证相关 API",
+          "实现 login(email, password) (暂返回 mock data)",
+          "实现 logout() (调用后端 /logout)",
+          "实现 refreshToken() (调用 /refresh)",
+          "实现 getCurrentUser() (调用 /me)",
+          "channelService.ts: 渠道 API 占位",
+          "定义接口签名: getChannels, createChannel, updateChannel, deleteChannel",
+          "productService.ts: 产品 API 占位",
+          "orderService.ts: 订单 API 占位"
+        ],
+        "depends_on": [3],
+        "output": "api_services"
+      },
+      {
+        "step": 7,
+        "title": "配置环境变量和主入口",
+        "description": "设置 Vite 环境变量和 main.tsx",
+        "modification_points": [
+          "创建 2 个文件: [.env.development (5 个变量), .env.production (5 个变量)]",
+          "修改 2 个文件: [main.tsx (集成 Router, Query, ErrorBoundary), App.tsx (删除, 使用 router)]",
+          "定义 5 个环境变量: [VITE_API_BASE_URL, VITE_APP_NAME, VITE_APP_VERSION, VITE_ENABLE_DEVTOOLS, VITE_LOG_LEVEL]"
+        ],
+        "logic_flow": [
+          ".env.development: 配置开发环境变量",
+          "VITE_API_BASE_URL=http://localhost:4000/api/v1",
+          "VITE_ENABLE_DEVTOOLS=true",
+          ".env.production: 配置生产环境变量",
+          "main.tsx: 应用入口文件",
+          "导入 QueryClientProvider, RouterProvider",
+          "包裹 ErrorBoundary",
+          "渲染 RouterProvider (router from step 1)",
+          "条件渲染 React Query DevTools"
+        ],
+        "depends_on": [1, 3, 4, 5],
+        "output": "app_entry"
+      },
+      {
+        "step": 8,
+        "title": "样式配置和优化",
+        "description": "配置 Tailwind CSS 和 Ant Design 主题",
+        "modification_points": [
+          "修改 3 个文件: [tailwind.config.js (添加 Ant Design 颜色), index.css (导入 Tailwind, 全局样式), vite.config.ts (配置 path alias)]",
+          "配置 5 个 path alias: [@/components, @/pages, @/stores, @/services, @/utils]"
+        ],
+        "logic_flow": [
+          "tailwind.config.js: 扩展主题",
+          "添加 Ant Design 颜色变量",
+          "配置 content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}']",
+          "index.css: 导入 Tailwind 指令",
+          "@tailwind base; @tailwind components; @tailwind utilities;",
+          "添加全局样式 (字体, 滚动条)",
+          "vite.config.ts: 配置路径别名",
+          "resolve.alias: {'@': '/src', '@components': '/src/components', ...}",
+          "配置代理: proxy: {'/api': {target: 'http://localhost:4000'}}"
+        ],
+        "depends_on": [7],
+        "output": "styling_configuration"
+      },
+      {
+        "step": 9,
+        "title": "测试和验证",
+        "description": "验证前端应用正常运行",
+        "modification_points": [
+          "执行 3 个测试命令: [npm run dev, npm run build, npm run type-check]",
+          "验证 5 个页面访问: [/, /login, /dashboard, /channels, /products]"
+        ],
+        "logic_flow": [
+          "启动开发服务器 (npm run dev)",
+          "访问 http://localhost:3000 (应显示登录页)",
+          "访问 /dashboard (应重定向到 /login)",
+          "测试登录功能 (mock 登录)",
+          "登录后访问 /channels, /products, /orders (应正常显示)",
+          "检查浏览器控制台无错误",
+          "检查 React Query DevTools 可见",
+          "运行生产构建 (npm run build, 应生成 dist/)",
+          "运行类型检查 (npm run type-check, 应无错误)"
+        ],
+        "depends_on": [8],
+        "output": "validation_results"
+      }
+    ],
+    "target_files": [
+      "frontend/src/router/index.tsx",
+      "frontend/src/router/routes.tsx",
+      "frontend/src/router/PrivateRoute.tsx",
+      "frontend/src/stores/authStore.ts",
+      "frontend/src/stores/uiStore.ts",
+      "frontend/src/stores/userStore.ts",
+      "frontend/src/stores/index.ts",
+      "frontend/src/lib/queryClient.ts",
+      "frontend/src/lib/axios.ts",
+      "frontend/src/components/common/Layout.tsx",
+      "frontend/src/components/common/Header.tsx",
+      "frontend/src/components/common/Sidebar.tsx",
+      "frontend/src/components/common/Breadcrumb.tsx",
+      "frontend/src/components/common/LoadingSpinner.tsx",
+      "frontend/src/components/common/ErrorBoundary.tsx",
+      "frontend/src/components/common/TableWrapper.tsx",
+      "frontend/src/pages/LoginPage.tsx",
+      "frontend/src/pages/DashboardPage.tsx",
+      "frontend/src/pages/ChannelsPage.tsx",
+      "frontend/src/pages/ProductsPage.tsx",
+      "frontend/src/pages/OrdersPage.tsx",
+      "frontend/src/pages/NotFoundPage.tsx",
+      "frontend/src/services/authService.ts",
+      "frontend/src/services/channelService.ts",
+      "frontend/src/services/productService.ts",
+      "frontend/src/services/orderService.ts",
+      "frontend/src/services/types.ts",
+      "frontend/src/main.tsx",
+      "frontend/.env.development",
+      "frontend/.env.production",
+      "frontend/tailwind.config.js",
+      "frontend/src/index.css",
+      "frontend/vite.config.ts"
+    ]
+  }
+}

@@ -1,0 +1,149 @@
+{
+  "id": "IMPL-006",
+  "title": "后端API - 领导看板数据聚合和缓存",
+  "status": "pending",
+  "meta": {
+    "type": "feature",
+    "agent": "@code-developer"
+  },
+  "context": {
+    "requirements": [
+      "实现4个统计指标API: [GET /api/dashboard/stats(综合统计), GET /api/dashboard/distributors(分销商趋势), GET /api/dashboard/tasks(任务完成情况), GET /api/dashboard/regions(区域分布)]",
+      "实现1个定时聚合任务: [每分钟执行聚合SQL, 计算8个指标并写入Redis, TTL=5分钟]",
+      "计算8个核心指标: [分销商总数, 本月新增数, 成交率(已合作/总数), 区域分布TOP5, 任务总数, 已完成任务数, 进行中任务数, 逾期任务数]",
+      "实现5个异常处理机制: [缓存失效回源, 零值显示规范, NaN/Null防护, 分母为0防护, 数据延迟标注]"
+    ],
+    "focus_paths": ["src/modules/dashboard", "src/jobs/dashboard-aggregation"],
+    "acceptance": [
+      "4个API端点测试通过: 验证 npm test -- dashboard.controller.spec.ts 所有测试通过",
+      "定时聚合任务运行: 验证 docker logs backend | grep 'DashboardAggregationService' 每分钟输出执行日志",
+      "8个指标计算验证: 验证 GET /api/dashboard/stats 返回JSON包含8个指标字段且值类型正确(非NaN/null)",
+      "5个异常处理验证: 验证 Redis缓存失效时API自动回源查询数据库(响应时间<1秒), 分母为0时返回'--'而非Infinity"
+    ],
+    "depends_on": ["IMPL-001", "IMPL-002", "IMPL-004"],
+    "artifacts": [
+      {
+        "type": "synthesis_specification",
+        "path": ".workflow/WFS-channel-management/.brainstorming/guidance-specification.md",
+        "priority": "highest",
+        "usage": "看板设计决策, EP-006(数据缺失和异常处理规范)"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/WFS-channel-management/.brainstorming/system-architect/analysis.md",
+        "priority": "high",
+        "usage": "Architecture: 定时任务+Redis缓存准实时数据同步方案"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/WFS-channel-management/.brainstorming/data-architect/analysis.md",
+        "priority": "high",
+        "usage": "Data model: 看板数据聚合逻辑, Redis数据结构设计"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/WFS-channel-management/.brainstorming/product-manager/analysis.md",
+        "priority": "high",
+        "usage": "User Story 3.1-3.3: 领导看板统计指标和异常处理需求"
+      }
+    ]
+  },
+  "flow_control": {
+    "pre_analysis": [
+      {
+        "step": "load_ep006_specifications",
+        "action": "Load EP-006 data handling specifications",
+        "commands": [
+          "Read(.workflow/WFS-channel-management/.brainstorming/enhancement-recommendations.json)"
+        ],
+        "output_to": "ep006_spec",
+        "on_error": "fail"
+      }
+    ],
+    "implementation_approach": [
+      {
+        "step": 1,
+        "title": "实现定时聚合任务DashboardAggregationService",
+        "description": "创建Cron任务每分钟执行聚合SQL, 计算8个指标, 写入Redis缓存(TTL=5分钟)",
+        "modification_points": [
+          "创建1个文件: src/jobs/dashboard-aggregation.service.ts (约250行)",
+          "实现1个Cron方法: [@Cron('*/1 * * * *') handleDashboardAggregation()]",
+          "编写8个聚合SQL查询: [COUNT(distributors), COUNT(本月created_at), 成交率计算, COUNT(tasks GROUP BY status), 区域分布TOP5]",
+          "实现Redis写入: 使用Hash数据结构存储(key='dashboard:stats', fields={total_distributors, new_this_month, ...}, TTL=300秒)"
+        ],
+        "logic_flow": [
+          "从[ep006_spec]提取聚合逻辑和异常处理规范",
+          "创建DashboardAggregationService类, 注入distributorsRepository, tasksRepository, redisService",
+          "实现handleDashboardAggregation方法: 每分钟执行一次",
+          "执行聚合SQL查询8个指标: SELECT COUNT(*) FROM distributors WHERE status='active' (分销商总数), SELECT COUNT(*) FROM distributors WHERE DATE(created_at) >= DATE_TRUNC('month', NOW()) (本月新增), SELECT COUNT(CASE WHEN cooperation_level IN ('A','B') THEN 1 END)::float / NULLIF(COUNT(*), 0) (成交率, 防止除零), SELECT region, COUNT(*) FROM distributors GROUP BY region ORDER BY COUNT(*) DESC LIMIT 5 (区域分布TOP5), SELECT COUNT(*) FROM tasks (任务总数), SELECT COUNT(*) FROM tasks WHERE status='completed' (已完成), SELECT COUNT(*) FROM tasks WHERE status='in_progress' (进行中), SELECT COUNT(*) FROM tasks WHERE is_overdue=true (逾期)",
+          "处理计算异常: 使用NULLIF和COALESCE防止除零和null值, 例如 COALESCE(成交率, 0)",
+          "写入Redis: await redisService.hSet('dashboard:stats', { total_distributors: result1, new_this_month: result2, conversion_rate: result3 || 0, ... }), await redisService.expire('dashboard:stats', 300)",
+          "记录执行日志: logger.log('DashboardAggregationService: Aggregated 8 metrics, written to Redis')",
+          "错误处理: catch块中记录错误日志, 但不抛出异常(保证定时任务继续执行)",
+          "编写6个单元测试覆盖8个聚合查询和异常处理(使用jest.mock模拟SQL和Redis)"
+        ],
+        "depends_on": [],
+        "output": "dashboard_aggregation_service"
+      },
+      {
+        "step": 2,
+        "title": "实现看板Controller和缓存回源逻辑",
+        "description": "创建dashboard.controller.ts实现4个API端点, 集成Redis缓存读取和数据库回源",
+        "modification_points": [
+          "创建1个文件: src/modules/dashboard/dashboard.controller.ts (约180行)",
+          "实现4个端点方法: [getStats(GET /stats), getDistributorsTrend(GET /distributors), getTasksStatus(GET /tasks), getRegionsDistribution(GET /regions)]",
+          "实现缓存失效回源策略: 若Redis.get()返回null, 立即查询数据库并写入Redis",
+          "实现数据格式化: 所有数值字段保证返回有效数字(0或正数), 字符串字段返回空字符串而非null"
+        ],
+        "logic_flow": [
+          "从[ep006_spec]提取缓存失效回源和NaN/Null防护规范",
+          "定义Controller类和路由装饰器 @Controller('api/dashboard')",
+          "实现getStats方法: 1)尝试从Redis读取dashboard:stats (await redisService.hGetAll('dashboard:stats')), 2)若缓存命中则格式化返回(处理NaN/null), 3)若缓存miss则调用dashboardService.calculateStats()实时计算, 4)将实时计算结果写入Redis(TTL=300秒), 5)返回格式化数据",
+          "实现formatStatsResponse函数: 遍历所有字段, 若值为NaN/null/undefined则转换为0或'--', 若字符串为null则转换为空字符串''",
+          "实现getDistributorsTrend方法: 查询过去6个月的月度新增趋势(GROUP BY DATE_TRUNC('month', created_at)), 返回数组[{month: '2024-06', count: 15}, ...]",
+          "实现getTasksStatus方法: 查询任务状态分布(GROUP BY status), 返回{pending: 10, in_progress: 5, completed: 20, overdue: 3}",
+          "实现getRegionsDistribution方法: 从Redis读取region_distribution字段, 若miss则实时查询TOP5地区分布",
+          "添加响应元数据: 每个响应包含updated_at时间戳和data_source标识(cache或database)",
+          "编写10个单元测试覆盖4个端点, 缓存命中/miss场景, NaN/null处理"
+        ],
+        "depends_on": [1],
+        "output": "dashboard_controller"
+      },
+      {
+        "step": 3,
+        "title": "实现DashboardService业务逻辑和异常告警",
+        "description": "创建dashboard.service.ts实现实时计算逻辑和数据异常监测",
+        "modification_points": [
+          "创建1个文件: src/modules/dashboard/dashboard.service.ts (约200行)",
+          "实现5个计算方法: [calculateStats, calculateTrend, calculateTasksStatus, calculateRegions, detectAnomalies]",
+          "实现异常监测: 若某小时新增分销商数>历史均值3倍, 记录告警日志并标记数据异常",
+          "实现零值/空值规范: 所有计算结果使用COALESCE处理null, 分母为0时返回'--'字符串"
+        ],
+        "logic_flow": [
+          "从[ep006_spec]提取零值显示规范和异常告警机制",
+          "定义Service类, 注入distributorsRepository, tasksRepository, alertService",
+          "实现calculateStats方法: 执行8个聚合SQL(与定时任务相同逻辑), 处理除零异常(使用NULLIF), 返回格式化对象",
+          "实现calculateTrend方法: 查询过去6个月数据, 若数据点<3个则返回{trend: [], insufficient_data: true}, 若数据点>=3个则计算同比增长率",
+          "实现detectAnomalies方法: 查询当前小时新增数, 查询历史30天平均值, 若current > avg * 3则调用alertService.log('DATA_ANOMALY', { metric: 'new_distributors', current, avg })",
+          "实现除零防护函数: safeDiv(a, b) { return b === 0 ? '--' : (a / b).toFixed(2) }",
+          "实现NaN防护函数: sanitizeNumber(value) { return isNaN(value) || value === null || value === undefined ? 0 : value }",
+          "所有计算方法返回前调用sanitizeNumber清理所有数值字段",
+          "编写12个单元测试覆盖5个计算方法, 异常监测, 除零防护, NaN处理"
+        ],
+        "depends_on": [2],
+        "output": "dashboard_service"
+      }
+    ],
+    "target_files": [
+      "src/jobs/dashboard-aggregation.service.ts",
+      "src/modules/dashboard/dashboard.controller.ts",
+      "src/modules/dashboard/dashboard.service.ts",
+      "src/modules/dashboard/dashboard.types.ts",
+      "src/modules/dashboard/dto/stats-response.dto.ts",
+      "src/modules/dashboard/dto/trend-response.dto.ts",
+      "src/jobs/dashboard-aggregation.service.spec.ts",
+      "src/modules/dashboard/dashboard.controller.spec.ts",
+      "src/modules/dashboard/dashboard.service.spec.ts"
+    ]
+  }
+}

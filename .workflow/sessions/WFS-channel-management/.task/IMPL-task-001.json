@@ -1,0 +1,107 @@
+{
+  "id": "IMPL-task-001",
+  "title": "任务管理系统实现(含协作和状态流转)",
+  "status": "completed",
+  "priority": "high",
+  "meta": {
+    "type": "feature",
+    "agent": "@code-developer",
+    "estimated_complexity": "complex"
+  },
+  "context": {
+    "requirements": [
+      "实现6个任务API: [POST /api/tasks创建任务, GET /api/tasks任务列表, GET /api/tasks/:id任务详情, PUT /api/tasks/:id更新任务, PUT /api/tasks/:id/status状态变更, PUT /api/tasks/:id/assign转接任务]",
+      "创建4个任务状态: [pending待处理, in_progress进行中, completed已完成, overdue逾期]",
+      "实现5个协作功能(EP-007增强): [主要负责人管理, 协作人添加/删除, 评论讨论, 任务转接流程, 优先级动态调整]",
+      "创建3个前端页面: [销售工作台Workspace.tsx(任务优先视图), 任务详情TaskDetail.tsx(含评论和进度), 任务创建CreateTask模态框]",
+      "实现3个自动化机制(EP-004增强): [逾期任务自动检测(每小时), 截止提醒(前1天/当天/逾期), 完成任务自动归档(3天后)]"
+    ],
+    "focus_paths": [
+      "backend/controllers/taskController.ts",
+      "backend/models/task.ts",
+      "src/pages/workspace/",
+      "src/components/TaskCard/"
+    ],
+    "acceptance": [
+      "6个任务API正常工作: 验证by curl测试CRUD/状态变更/转接操作",
+      "4个状态正确流转: 验证by pending→in_progress→completed流程,逾期自动标记",
+      "5个协作功能生效: 验证by 添加协作人/评论/转接/调整优先级/查看历史",
+      "3个前端页面渲染正常: 验证by 工作台分组显示任务,详情页显示时间线,创建模态框正常提交",
+      "3个自动化机制运行: 验证by 逾期任务标红,提醒通知发送,归档任务从列表移除"
+    ],
+    "depends_on": [
+      "IMPL-dealer-001"
+    ],
+    "artifacts": [
+      {
+        "type": "synthesis_specification",
+        "path": ".workflow/sessions/WFS-channel-management/brainstorm/guidance-specification.md",
+        "priority": "highest"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/sessions/WFS-channel-management/brainstorm/product-manager/analysis.md",
+        "priority": "high"
+      },
+      {
+        "type": "enhancement",
+        "path": ".workflow/sessions/WFS-channel-management/brainstorm/enhancement-recommendations.json",
+        "priority": "medium"
+      }
+    ]
+  },
+  "flow_control": {
+    "implementation_approach": [
+      {
+        "step": 1,
+        "title": "创建任务数据模型和基础API",
+        "modification_points": [
+          "创建task模型(9字段)",
+          "实现CRUD 5个API"
+        ],
+        "depends_on": []
+      },
+      {
+        "step": 2,
+        "title": "实现任务状态流转和逾期检测",
+        "modification_points": [
+          "状态机实现",
+          "定时任务检测逾期"
+        ],
+        "depends_on": [
+          1
+        ]
+      },
+      {
+        "step": 3,
+        "title": "实现任务协作功能(EP-007)",
+        "modification_points": [
+          "协作人管理",
+          "评论系统",
+          "转接流程"
+        ],
+        "depends_on": [
+          2
+        ]
+      },
+      {
+        "step": 4,
+        "title": "创建销售工作台和任务卡片组件",
+        "modification_points": [
+          "工作台3分组",
+          "任务卡片",
+          "筛选器"
+        ],
+        "depends_on": [
+          3
+        ]
+      }
+    ],
+    "target_files": [
+      "backend/models/task.ts",
+      "backend/controllers/taskController.ts",
+      "src/pages/workspace/Workspace.tsx",
+      "src/components/TaskCard/TaskCard.tsx"
+    ]
+  }
+}

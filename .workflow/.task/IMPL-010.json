@@ -1,0 +1,162 @@
+{
+  "id": "IMPL-010",
+  "title": "佣金计算引擎",
+  "status": "pending",
+  "meta": {
+    "type": "feature",
+    "agent": "@code-developer",
+    "sprint": 2,
+    "priority": "medium",
+    "estimated_hours": 12
+  },
+  "context": {
+    "requirements": [
+      "实现 4 个后端 API: [GET /commissions, GET /commissions/:id, POST /commissions/calculate, PUT /commissions/:id/settle]",
+      "创建 1 个 CommissionService: 3 个方法 (计算佣金, 查询佣金, 结算佣金)",
+      "实现 1 个佣金计算规则: 订单完成后自动计算渠道佣金 (订单金额 × 佣金比例)",
+      "前端实现 2 个功能: [佣金列表, 佣金结算]",
+      "集成 1 个自动触发: 订单状态变为 DELIVERED 时自动创建佣金记录"
+    ],
+    "focus_paths": [
+      "backend/src/services/commission.service.ts",
+      "backend/src/controllers/commission.controller.ts",
+      "frontend/src/pages/CommissionsPage.tsx"
+    ],
+    "acceptance": [
+      "4 个 API 正常工作: 验证所有端点",
+      "佣金自动创建: 验证订单完成后自动生成佣金记录",
+      "佣金计算正确: 验证佣金金额 = 订单总额 × 佣金比例",
+      "前端列表展示: 验证佣金列表显示所有佣金",
+      "结算功能: 验证可以标记佣金为已结算"
+    ],
+    "depends_on": ["IMPL-009"],
+    "artifacts": []
+  },
+  "flow_control": {
+    "pre_analysis": [],
+    "implementation_approach": [
+      {
+        "step": 1,
+        "title": "创建 CommissionService",
+        "description": "实现佣金业务逻辑",
+        "modification_points": [
+          "创建 1 个文件: backend/src/services/commission.service.ts (180 行)",
+          "实现 3 个方法: [calculateCommission(orderId), getAll(分页+筛选), settle(更新状态)]"
+        ],
+        "logic_flow": [
+          "calculateCommission 方法:",
+          "1. 查询订单 (Order + Channel)",
+          "2. 校验订单状态 = DELIVERED",
+          "3. 获取渠道佣金比例 (从 Channel 或配置, 默认 5%)",
+          "4. 计算佣金: amount = order.totalAmount * commissionRate",
+          "5. Prisma.create Commission {channelId, orderId, amount, status: PENDING}",
+          "6. 返回 commission 对象",
+          "getAll: 支持过滤 (channelId, status), 分页",
+          "settle: 更新 status = SETTLED, 记录结算时间"
+        ],
+        "depends_on": [],
+        "output": "commission_service"
+      },
+      {
+        "step": 2,
+        "title": "创建 CommissionController 和路由",
+        "description": "实现 4 个 API 端点",
+        "modification_points": [
+          "创建 2 个文件: [backend/src/controllers/commission.controller.ts (100 行), backend/src/routes/commission.route.ts (40 行)]"
+        ],
+        "logic_flow": [
+          "getAll: 支持筛选和分页",
+          "权限: AGENT 只能查看自己渠道佣金, ADMIN 全部",
+          "calculate: POST /calculate, body: {orderId}, 调用 CommissionService.calculateCommission",
+          "settle: PUT /commissions/:id/settle, 调用 CommissionService.settle",
+          "权限: 仅 ADMIN 可结算"
+        ],
+        "depends_on": [1],
+        "output": "commission_endpoints"
+      },
+      {
+        "step": 3,
+        "title": "集成订单完成自动触发",
+        "description": "订单状态变为 DELIVERED 时自动创建佣金",
+        "modification_points": [
+          "修改 1 个文件: backend/src/services/order.service.ts (updateStatus 方法添加佣金触发, +15 行)"
+        ],
+        "logic_flow": [
+          "在 OrderService.updateStatus 方法中:",
+          "如果 newStatus === DELIVERED:",
+          "1. 调用 CommissionService.calculateCommission(orderId)",
+          "2. 捕获错误 (如果佣金已存在则跳过)",
+          "3. 记录日志"
+        ],
+        "depends_on": [1],
+        "output": "auto_trigger"
+      },
+      {
+        "step": 4,
+        "title": "实现前端佣金列表页面",
+        "description": "佣金管理页面",
+        "modification_points": [
+          "创建 1 个文件: frontend/src/pages/CommissionsPage.tsx (200 行)",
+          "实现 Table 展示佣金"
+        ],
+        "logic_flow": [
+          "CommissionTable: columns [订单号, 渠道, 佣金金额, 状态, 创建时间, 操作]",
+          "状态字段: Tag (PENDING-蓝, SETTLED-绿)",
+          "筛选栏: Select (状态), Select (渠道, 仅 ADMIN)",
+          "useQuery 获取佣金列表",
+          "操作列: '结算' 按钮 (仅 ADMIN, 仅 PENDING 状态可见)",
+          "useMutation 调用 commissionService.settle",
+          "成功后: message.success, 刷新列表"
+        ],
+        "depends_on": [],
+        "output": "commissions_page"
+      },
+      {
+        "step": 5,
+        "title": "添加佣金统计到 Dashboard",
+        "description": "在 DashboardPage 显示佣金统计",
+        "modification_points": [
+          "修改 1 个文件: frontend/src/pages/DashboardPage.tsx (添加佣金统计卡片, +50 行)"
+        ],
+        "logic_flow": [
+          "新增 2 个统计卡片:",
+          "1. 待结算佣金总额 (橙色)",
+          "2. 已结算佣金总额 (绿色)",
+          "useQuery 获取佣金统计 (commissionService.getStatistics, 后端需添加此 API)",
+          "点击卡片跳转到佣金列表"
+        ],
+        "depends_on": [4],
+        "output": "commission_statistics"
+      },
+      {
+        "step": 6,
+        "title": "测试",
+        "description": "测试佣金计算和结算",
+        "modification_points": [
+          "执行 5 个测试: [自动创建佣金, 佣金计算正确性, 结算佣金, 权限控制, 统计数据]"
+        ],
+        "logic_flow": [
+          "后端测试: 创建订单并完成 (状态变为 DELIVERED)",
+          "验证自动生成佣金记录 (查询 commissions 表)",
+          "验证佣金金额 = 订单总额 × 5%",
+          "结算测试: PUT /commissions/:id/settle",
+          "验证状态变为 SETTLED",
+          "权限测试: AGENT 登录, 验证只能查看自己渠道佣金",
+          "前端测试: 佣金列表显示, 结算按钮功能",
+          "Dashboard 统计验证"
+        ],
+        "depends_on": [2, 3, 5],
+        "output": "test_results"
+      }
+    ],
+    "target_files": [
+      "backend/src/services/commission.service.ts",
+      "backend/src/controllers/commission.controller.ts",
+      "backend/src/routes/commission.route.ts",
+      "backend/src/services/order.service.ts",
+      "frontend/src/services/commissionService.ts",
+      "frontend/src/pages/CommissionsPage.tsx",
+      "frontend/src/pages/DashboardPage.tsx"
+    ]
+  }
+}

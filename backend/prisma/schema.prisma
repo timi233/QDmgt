@@ -1,0 +1,586 @@
+// Prisma schema file
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// User model - supports admin, sales and leader roles
+model User {
+  id           String        @id @default(uuid())
+  username     String?       @unique
+  email        String?       @unique
+  passwordHash String?       @map("password_hash")
+  name         String?
+  role         String?       // admin/sales/leader, nullable for pending users
+  status       String        @default("approved") @map("status") // pending/approved/rejected
+  requirePasswordChange Boolean @default(false) @map("require_password_change") // Force password change on next login
+
+  // Feishu OAuth fields
+  feishuId      String?      @unique @map("feishu_id")      // open_id
+  feishuUnionId String?      @unique @map("feishu_union_id") // union_id
+  phone         String?
+  avatar        String?
+  department    String?
+
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  distributors         Distributor[]        @relation("DistributorOwner")
+  assignedTasks        Task[]               @relation("TaskAssignee")
+  createdTasks         Task[]               @relation("TaskCreator")
+  collaborations       TaskCollaborator[]   @relation("CollaboratorUser")
+  collaboratorsAdded   TaskCollaborator[]   @relation("CollaboratorAddedBy")
+  comments             TaskComment[]        @relation("CommentUser")
+  statusChanges        TaskStatusHistory[]  @relation("StatusChangeUser")
+  events               Event[]              @relation("EventCreator")
+  channelTargets       ChannelTarget[]      @relation("TargetOwner")
+  workPlans            WorkPlan[]           @relation("WorkPlanOwner")
+  visits               PartnerVisit[]       @relation("VisitorUser")
+
+  // P1 Relations
+  createdTrainings     Training[]           @relation("TrainingCreator")
+  createdResources     ResourceLibrary[]    @relation("ResourceCreator")
+  createdTickets       SupportTicket[]      @relation("TicketCreator")
+  assignedTickets      SupportTicket[]      @relation("TicketAssignee")
+  ticketComments       TicketComment[]      @relation("TicketCommentUser")
+
+  @@map("users")
+}
+
+// Distributor model - channel partner information
+model Distributor {
+  id               String   @id @default(uuid())
+  name             String
+  region           String   // Three-level region (province/city/district)
+  contactPerson    String   @map("contact_person")
+  phone            String
+  cooperationLevel String   @default("bronze") @map("cooperation_level") // bronze/silver/gold/platinum
+  creditLimit      Float    @default(0) @map("credit_limit") // Credit limit in 10000 yuan
+  tags             String?  // Comma-separated tags, max 5
+  historicalPerformance String? @map("historical_performance") // Optional historical performance notes
+  notes            String?  // Optional notes
+  ownerUserId      String   @map("owner_user_id")
+  deletedAt        DateTime? @map("deleted_at") // Soft delete timestamp
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  // New fields for channel classification
+  channelType      String   @default("normal") @map("channel_type") // basic_plate/high_value/pending/normal_gold/other
+  quarterlyTarget  Float    @default(0) @map("quarterly_target") // Quarterly target
+  quarterlyCompleted Float  @default(0) @map("quarterly_completed") // Quarterly completed
+  projectCount     Int      @default(0) @map("project_count") // Project count
+  projectAmount    Float    @default(0) @map("project_amount") // Project amount in 10000 yuan
+
+  // Enhanced channel management fields (P0)
+  partnerType      String   @default("reseller") @map("partner_type") // ISV/SI/VAR/agent/reseller
+  channelTier      String   @default("standard") @map("channel_tier") // strategic/core/standard/developing
+  certificationsLegacy String? @map("certifications") // Legacy: Comma-separated certifications (deprecated, use Certification model)
+  certificationLevel String @default("bronze") @map("certification_level") // gold/silver/bronze
+  serviceArea      String?  @map("service_area") // Comma-separated service areas
+  productLines     String?  @map("product_lines") // Comma-separated product lines
+  industryFocus    String?  @map("industry_focus") // Comma-separated industry focus
+  healthScore      Float    @default(0) @map("health_score") // 0-100 health score
+  healthStatus     String   @default("healthy") @map("health_status") // healthy/warning/at_risk/dormant
+  lastContactDate  DateTime? @map("last_contact_date") // Last contact date
+
+  // Relations
+  owner User   @relation("DistributorOwner", fields: [ownerUserId], references: [id])
+  tasks Task[] @relation("DistributorTasks")
+  workPlans WorkPlan[] @relation("DistributorWorkPlans")
+  visits PartnerVisit[] @relation("DistributorVisits")
+  healthScores PartnerHealthScore[] @relation("DistributorHealthScores")
+
+  // P1 Relations
+  trainingParticipants TrainingParticipant[] @relation("DistributorTrainingParticipants")
+  supportTickets       SupportTicket[]       @relation("DistributorTickets")
+  certifications       Certification[]       @relation("DistributorCertifications")
+
+  @@unique([name, region]) // Ensure unique name per region
+  @@index([ownerUserId])
+  @@index([deletedAt])
+  @@index([channelType])
+  @@map("distributors")
+}
+
+// Task model - distributor management tasks with collaboration
+model Task {
+  id               String   @id @default(uuid())
+  distributorId    String   @map("distributor_id")
+  assignedUserId   String   @map("assigned_user_id") // Primary assignee
+  creatorUserId    String   @map("creator_user_id") // Task creator
+  title            String
+  description      String?
+  deadline         DateTime
+  priority         String   @default("medium") // low/medium/high/urgent
+  status           String   @default("pending") // pending/in_progress/completed/overdue
+  archivedAt       DateTime? @map("archived_at") // Auto-archive 3 days after completion
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  completedAt      DateTime? @map("completed_at")
+
+  // Relations
+  distributor     Distributor        @relation("DistributorTasks", fields: [distributorId], references: [id])
+  assignedUser    User               @relation("TaskAssignee", fields: [assignedUserId], references: [id])
+  creator         User               @relation("TaskCreator", fields: [creatorUserId], references: [id])
+  collaborators   TaskCollaborator[] @relation("TaskCollaborators")
+  comments        TaskComment[]      @relation("TaskComments")
+  statusHistory   TaskStatusHistory[] @relation("TaskStatusHistory")
+
+  @@index([assignedUserId])
+  @@index([creatorUserId])
+  @@index([deadline])
+  @@index([status])
+  @@index([archivedAt])
+  @@map("tasks")
+}
+
+// TaskCollaborator model - task collaboration
+model TaskCollaborator {
+  id        String   @id @default(uuid())
+  taskId    String   @map("task_id")
+  userId    String   @map("user_id")
+  addedBy   String   @map("added_by") // User who added this collaborator
+  addedAt   DateTime @default(now()) @map("added_at")
+
+  // Relations
+  task    Task @relation("TaskCollaborators", fields: [taskId], references: [id], onDelete: Cascade)
+  user    User @relation("CollaboratorUser", fields: [userId], references: [id])
+  addedByUser User @relation("CollaboratorAddedBy", fields: [addedBy], references: [id])
+
+  @@unique([taskId, userId]) // One user can be collaborator only once per task
+  @@index([taskId])
+  @@index([userId])
+  @@map("task_collaborators")
+}
+
+// TaskComment model - task discussion
+model TaskComment {
+  id        String   @id @default(uuid())
+  taskId    String   @map("task_id")
+  userId    String   @map("user_id")
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  task Task @relation("TaskComments", fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation("CommentUser", fields: [userId], references: [id])
+
+  @@index([taskId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("task_comments")
+}
+
+// TaskStatusHistory model - track status changes
+model TaskStatusHistory {
+  id          String   @id @default(uuid())
+  taskId      String   @map("task_id")
+  fromStatus  String?  @map("from_status")
+  toStatus    String   @map("to_status")
+  changedBy   String   @map("changed_by")
+  reason      String?  // Optional reason for status change
+  changedAt   DateTime @default(now()) @map("changed_at")
+
+  // Relations
+  task        Task @relation("TaskStatusHistory", fields: [taskId], references: [id], onDelete: Cascade)
+  changedByUser User @relation("StatusChangeUser", fields: [changedBy], references: [id])
+
+  @@index([taskId])
+  @@index([changedAt])
+  @@map("task_status_history")
+}
+
+// Event model - event sourcing for audit trail
+model Event {
+  id         String   @id @default(uuid())
+  eventType  String   @map("event_type") // user_login, task_created, distributor_updated, etc.
+  entityType String   @map("entity_type") // user, distributor, task
+  entityId   String   @map("entity_id")
+  userId     String   @map("user_id")
+  payload    String   // JSON string for flexible event data
+  timestamp  DateTime @default(now())
+
+  // Relations
+  user User @relation("EventCreator", fields: [userId], references: [id])
+
+  @@index([eventType])
+  @@index([entityType, entityId])
+  @@index([timestamp])
+  @@map("events")
+}
+
+// ChannelTarget model - channel target management
+model ChannelTarget {
+  id                String   @id @default(uuid())
+  year              Int                           // Year
+  quarter           String?                       // Quarter: Q1/Q2/Q3/Q4
+  month             Int?                          // Month: 1-12
+  targetType        String   @map("target_type")  // yearly/quarterly/monthly
+
+  // Target metrics
+  newSignTarget     Float    @default(0) @map("new_sign_target")      // New sign target
+  coreOpportunity   Float    @default(0) @map("core_opportunity")     // Core opportunity target
+  coreRevenue       Float    @default(0) @map("core_revenue")         // Core revenue target
+  highValueOpp      Float    @default(0) @map("high_value_opp")       // High value opportunity target
+  highValueRevenue  Float    @default(0) @map("high_value_revenue")   // High value revenue target
+
+  // Completion status
+  newSignCompleted  Float    @default(0) @map("new_sign_completed")   // New sign completed
+  coreOppCompleted  Float    @default(0) @map("core_opp_completed")   // Core opportunity completed
+  coreRevCompleted  Float    @default(0) @map("core_rev_completed")   // Core revenue completed
+  highValueOppComp  Float    @default(0) @map("high_value_opp_comp")  // High value opportunity completed
+  highValueRevComp  Float    @default(0) @map("high_value_rev_comp")  // High value revenue completed
+
+  description       String?                       // Target description
+  userId            String   @map("user_id")      // Owner
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user              User     @relation("TargetOwner", fields: [userId], references: [id])
+
+  @@index([year, quarter, month])
+  @@index([userId])
+  @@index([targetType])
+  @@map("channel_targets")
+}
+
+// WorkPlan model - monthly work plan
+model WorkPlan {
+  id                String   @id @default(uuid())
+  distributorId     String   @map("distributor_id")
+  userId            String   @map("user_id")
+  year              Int
+  month             Int
+
+  // Plan content
+  opportunitySource String?  @map("opportunity_source")  // Opportunity source
+  projectMgmt       String?  @map("project_mgmt")        // Project management plan
+  channelActions    String?  @map("channel_actions")     // Channel recognition actions
+
+  // Status
+  status            String   @default("planning") // planning/executing/completed
+
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  distributor       Distributor    @relation("DistributorWorkPlans", fields: [distributorId], references: [id], onDelete: Cascade)
+  user              User           @relation("WorkPlanOwner", fields: [userId], references: [id])
+  weeklyReviews     WeeklyReview[] @relation("PlanWeeklyReviews")
+
+  @@index([distributorId])
+  @@index([userId])
+  @@index([year, month])
+  @@map("work_plans")
+}
+
+// WeeklyReview model - weekly work review
+model WeeklyReview {
+  id            String   @id @default(uuid())
+  workPlanId    String   @map("work_plan_id")
+  weekNumber    Int      @map("week_number")     // Week number
+  year          Int
+
+  // Review content
+  progress      String?                          // Progress analysis
+  obstacles     String?                          // Obstacle identification
+  adjustments   String?                          // Plan adjustments
+
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  workPlan      WorkPlan @relation("PlanWeeklyReviews", fields: [workPlanId], references: [id], onDelete: Cascade)
+
+  @@index([workPlanId])
+  @@index([year, weekNumber])
+  @@map("weekly_reviews")
+}
+
+// PartnerVisit model - partner visit records
+model PartnerVisit {
+  id              String   @id @default(uuid())
+  distributorId   String   @map("distributor_id")
+  userId          String   @map("user_id")          // Visitor
+  visitDate       DateTime @map("visit_date")
+  visitType       String   @default("onsite") // onsite/online/phone/meeting
+
+  // Visit content
+  purpose         String                            // Visit purpose
+  participants    String?                           // Comma-separated participants
+  keyDiscussions  String?  @map("key_discussions")  // Key discussions
+  feedback        String?                           // Partner feedback
+  nextSteps       String?  @map("next_steps")       // Next steps
+
+  // Satisfaction
+  satisfactionScore Int?   @map("satisfaction_score") // 1-5 score
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  distributor     Distributor @relation("DistributorVisits", fields: [distributorId], references: [id], onDelete: Cascade)
+  visitor         User        @relation("VisitorUser", fields: [userId], references: [id])
+
+  @@index([distributorId])
+  @@index([userId])
+  @@index([visitDate])
+  @@map("partner_visits")
+}
+
+// PartnerHealthScore model - partner health score details
+model PartnerHealthScore {
+  id              String   @id @default(uuid())
+  distributorId   String   @map("distributor_id")
+  overallScore    Float    @default(0) @map("overall_score") // 0-100
+
+  // Performance dimension (30 points)
+  performanceScore Float   @default(0) @map("performance_score")
+  revenueGrowth   Float    @default(0) @map("revenue_growth")        // Revenue growth rate
+  targetAchievement Float  @default(0) @map("target_achievement")    // Target achievement rate
+  orderFrequency  Float    @default(0) @map("order_frequency")       // Orders per month
+
+  // Engagement dimension (25 points)
+  engagementScore Float    @default(0) @map("engagement_score")
+  productLinesCount Int    @default(0) @map("product_lines_count")
+  trainingParticipation Float @default(0) @map("training_participation")
+
+  // Activity dimension (25 points)
+  activityScore   Float    @default(0) @map("activity_score")
+  lastOrderDays   Int      @default(999) @map("last_order_days")    // Days since last order
+  lastContactDays Int      @default(999) @map("last_contact_days")  // Days since last contact
+  responseRate    Float    @default(0) @map("response_rate")        // Response rate %
+
+  // Satisfaction dimension (20 points)
+  satisfactionScore Float  @default(0) @map("satisfaction_score_dim")
+  avgSatisfactionRating Float @default(0) @map("avg_satisfaction_rating")
+  complaintCount  Int      @default(0) @map("complaint_count")
+
+  // Status and alerts
+  healthStatus    String   @default("healthy") @map("health_status") // healthy/warning/at_risk/dormant
+  alerts          String?                       // JSON array of alerts
+  recommendations String?                       // JSON array of recommendations
+
+  calculatedAt    DateTime @default(now()) @map("calculated_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relations
+  distributor     Distributor @relation("DistributorHealthScores", fields: [distributorId], references: [id], onDelete: Cascade)
+
+  @@index([distributorId])
+  @@index([overallScore])
+  @@index([healthStatus])
+  @@index([calculatedAt])
+  @@map("partner_health_scores")
+}
+
+// ==================== P1 Features ====================
+
+// Training model - partner training management
+model Training {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  trainingType String  @default("product") @map("training_type") // product/sales/technical/certification
+  format      String   @default("online") // online/offline/video
+
+  startDate   DateTime @map("start_date")
+  endDate     DateTime? @map("end_date")
+  duration    Int      @default(0) // Duration in minutes
+
+  location    String?  // For offline trainings
+  instructorName String? @map("instructor_name")
+  maxParticipants Int?  @map("max_participants") // Maximum number of participants
+
+  materials   String?  // Comma-separated material URLs or JSON array
+  status      String   @default("scheduled") // scheduled/ongoing/completed/cancelled
+
+  createdBy   String   @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  creator      User                   @relation("TrainingCreator", fields: [createdBy], references: [id])
+  participants TrainingParticipant[]  @relation("TrainingParticipants")
+
+  @@index([startDate])
+  @@index([trainingType])
+  @@index([status])
+  @@index([createdBy])
+  @@map("trainings")
+}
+
+// TrainingParticipant model - training participation records
+model TrainingParticipant {
+  id             String   @id @default(uuid())
+  trainingId     String   @map("training_id")
+  distributorId  String   @map("distributor_id")
+
+  status         String   @default("registered") // registered/confirmed/completed/absent/cancelled
+  registeredAt   DateTime @default(now()) @map("registered_at")
+  completedAt    DateTime? @map("completed_at")
+
+  attendanceStatus String? @map("attendance_status") // present/absent/late
+  examScore      Float?   @map("exam_score") // 0-100
+  feedback       String?  // Participant feedback
+  certificateIssued Boolean @default(false) @map("certificate_issued")
+
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  training      Training    @relation("TrainingParticipants", fields: [trainingId], references: [id], onDelete: Cascade)
+  distributor   Distributor @relation("DistributorTrainingParticipants", fields: [distributorId], references: [id], onDelete: Cascade)
+
+  @@unique([trainingId, distributorId])
+  @@index([trainingId])
+  @@index([distributorId])
+  @@index([status])
+  @@map("training_participants")
+}
+
+// ResourceLibrary model - partner resource library
+model ResourceLibrary {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  category    String   @default("product_doc") // product_doc/sales_kit/case_study/policy/video/whitepaper
+
+  fileUrl     String   @map("file_url") // File URL or path
+  fileSize    Int?     @map("file_size") // File size in bytes
+  fileType    String?  @map("file_type") // pdf/doc/ppt/video/etc
+  storageType String   @default("url") @map("storage_type") // url/upload (for future upload support)
+
+  thumbnailUrl String? @map("thumbnail_url") // Thumbnail image URL
+  keywords    String?  // Comma-separated keywords for search
+
+  accessLevel String   @default("all") @map("access_level") // all/gold/silver/bronze/platinum
+
+  downloadCount Int    @default(0) @map("download_count")
+  viewCount     Int    @default(0) @map("view_count")
+
+  isActive    Boolean  @default(true) @map("is_active")
+  publishedAt DateTime? @map("published_at")
+
+  createdBy   String   @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  creator     User     @relation("ResourceCreator", fields: [createdBy], references: [id])
+
+  @@index([category])
+  @@index([accessLevel])
+  @@index([isActive])
+  @@index([createdBy])
+  @@index([publishedAt])
+  @@map("resource_library")
+}
+
+// SupportTicket model - partner support ticket system
+model SupportTicket {
+  id            String   @id @default(uuid())
+  ticketNumber  String   @unique @map("ticket_number") // Auto-generated ticket number
+  distributorId String   @map("distributor_id")
+
+  ticketType    String   @default("technical") @map("ticket_type") // technical/sales/policy/billing/other
+  priority      String   @default("normal") // urgent/high/normal/low
+
+  subject       String
+  description   String
+
+  status        String   @default("open") // open/assigned/in_progress/pending/resolved/closed
+
+  createdBy     String   @map("created_by") // User who created the ticket
+  assignedTo    String?  @map("assigned_to") // User assigned to handle the ticket
+
+  firstResponseAt DateTime? @map("first_response_at") // SLA tracking
+  resolvedAt      DateTime? @map("resolved_at")
+  closedAt        DateTime? @map("closed_at")
+  resolutionTime  Int?      @map("resolution_time") // Resolution time in minutes
+
+  satisfactionRating Int?   @map("satisfaction_rating") // 1-5 rating
+
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  distributor   Distributor     @relation("DistributorTickets", fields: [distributorId], references: [id], onDelete: Cascade)
+  creator       User            @relation("TicketCreator", fields: [createdBy], references: [id])
+  assignee      User?           @relation("TicketAssignee", fields: [assignedTo], references: [id])
+  comments      TicketComment[] @relation("TicketComments")
+
+  @@index([distributorId])
+  @@index([createdBy])
+  @@index([assignedTo])
+  @@index([status])
+  @@index([priority])
+  @@index([ticketType])
+  @@index([createdAt])
+  @@map("support_tickets")
+}
+
+// TicketComment model - support ticket comments/updates
+model TicketComment {
+  id        String   @id @default(uuid())
+  ticketId  String   @map("ticket_id")
+  userId    String   @map("user_id")
+
+  content   String
+  isInternal Boolean @default(false) @map("is_internal") // Internal notes vs customer-visible
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  ticket    SupportTicket @relation("TicketComments", fields: [ticketId], references: [id], onDelete: Cascade)
+  user      User          @relation("TicketCommentUser", fields: [userId], references: [id])
+
+  @@index([ticketId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("ticket_comments")
+}
+
+// Certification model - partner certification management
+model Certification {
+  id            String   @id @default(uuid())
+  distributorId String   @map("distributor_id")
+
+  certType      String   @map("cert_type") // Product certification type
+  certName      String   @map("cert_name") // Certification name
+  level         String   @default("bronze") // gold/silver/bronze
+
+  obtainedDate  DateTime @map("obtained_date")
+  expiryDate    DateTime @map("expiry_date")
+  status        String   @default("valid") // valid/expired/pending/revoked
+
+  examScore     Float?   @map("exam_score") // Exam score if applicable
+  examDate      DateTime? @map("exam_date")
+
+  certificateUrl String? @map("certificate_url") // Certificate file URL
+  verificationCode String? @unique @map("verification_code") // Unique verification code
+
+  notes         String?  // Additional notes
+
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  distributor   Distributor @relation("DistributorCertifications", fields: [distributorId], references: [id], onDelete: Cascade)
+
+  @@unique([distributorId, certType, level])
+  @@index([distributorId])
+  @@index([status])
+  @@index([expiryDate])
+  @@index([certType])
+  @@map("certifications")
+}

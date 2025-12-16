@@ -1,0 +1,209 @@
+{
+  "id": "IMPL-002",
+  "title": "数据库设计和Prisma Schema定义",
+  "status": "pending",
+  "meta": {
+    "type": "feature",
+    "agent": "@code-developer",
+    "sprint": 1,
+    "priority": "high",
+    "estimated_hours": 12
+  },
+  "context": {
+    "requirements": [
+      "定义 8 个核心数据模型: [User, Channel, Product, PricingRule, Order, OrderItem, Commission, AuditLog]",
+      "创建 15 个字段索引: [email(unique), sku(unique), orderNo(unique), channelId, productId, orderId, userId, parentId, createdAt, updatedAt, status, role, level, channelLevel, amount]",
+      "配置 4 个枚举类型: [Role (3 values), Status (3 values), OrderStatus (5 values), ChannelLevel (4 values)]",
+      "建立 12 个外键关系: [User→Channel, Channel→Channel(parent), PricingRule→Product, Order→Channel, OrderItem→Order, OrderItem→Product, Commission→Channel, Commission→Order, 4个级联删除规则]",
+      "执行 1 次数据库迁移: 创建所有表和索引"
+    ],
+    "focus_paths": [
+      "backend/prisma/",
+      "backend/prisma/schema.prisma",
+      "backend/prisma/migrations/"
+    ],
+    "acceptance": [
+      "8 个数据模型定义完成: 验证 grep -c '^model ' backend/prisma/schema.prisma = 8",
+      "15 个索引创建成功: 验证 psql -c \"\\di\" | wc -l >= 15",
+      "数据库迁移成功: 验证 npx prisma migrate status 返回 'Database schema is up to date'",
+      "Prisma Client 生成: 验证 ls node_modules/.prisma/client/index.d.ts 存在",
+      "类型安全验证: 验证 npm run type-check 无错误"
+    ],
+    "depends_on": ["IMPL-001"],
+    "artifacts": [
+      {
+        "type": "analysis",
+        "path": ".workflow/.brainstorming/data-architect/analysis.md",
+        "priority": "highest"
+      },
+      {
+        "type": "specification",
+        "path": ".workflow/.brainstorming/guidance-specification.md",
+        "priority": "high"
+      }
+    ]
+  },
+  "flow_control": {
+    "pre_analysis": [
+      {
+        "step": "load_data_architecture",
+        "commands": [
+          "bash(ls .workflow/.brainstorming/data-architect/analysis.md 2>/dev/null)",
+          "Read(.workflow/.brainstorming/data-architect/analysis.md)"
+        ],
+        "output_to": "data_model_requirements",
+        "on_error": "skip_optional"
+      },
+      {
+        "step": "init_prisma",
+        "commands": [
+          "bash(cd backend && npx prisma init)"
+        ],
+        "output_to": "prisma_setup",
+        "on_error": "fail_fast"
+      }
+    ],
+    "implementation_approach": [
+      {
+        "step": 1,
+        "title": "定义核心数据模型",
+        "description": "在 schema.prisma 创建 8 个数据模型和 4 个枚举",
+        "modification_points": [
+          "创建 1 个文件: backend/prisma/schema.prisma (350 行)",
+          "定义 8 个 model: [User (12 字段), Channel (10 字段), Product (8 字段), PricingRule (7 字段), Order (8 字段), OrderItem (7 字段), Commission (6 字段), AuditLog (8 字段)]",
+          "定义 4 个 enum: [Role {ADMIN, AGENT, DISTRIBUTOR}, Status {ACTIVE, INACTIVE, SUSPENDED}, OrderStatus {PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED}, ChannelLevel {GENERAL_AGENT, REGIONAL_AGENT, PRIMARY_DISTRIBUTOR, SECONDARY_DISTRIBUTOR}]"
+        ],
+        "logic_flow": [
+          "配置 Prisma datasource (provider: postgresql)",
+          "配置 Prisma generator (client)",
+          "定义 4 个枚举类型",
+          "定义 User 模型 (12 字段: id, email, passwordHash, name, role, phone, channelId, status, lastLoginAt, createdAt, updatedAt, channel relation)",
+          "定义 Channel 模型 (10 字段: id, name, level, code, parentId, discountRate, contactPerson, contactPhone, status, createdAt, updatedAt, parent/children relations, users relation, orders relation)",
+          "定义 Product 模型 (8 字段: id, sku, name, description, basePrice, stock, status, createdAt, updatedAt, pricingRules relation, orderItems relation)",
+          "定义 PricingRule 模型 (7 字段: id, productId, channelLevel, discountRate, minQuantity, maxQuantity, createdAt, product relation)",
+          "定义 Order 模型 (8 字段: id, orderNo, channelId, totalAmount, status, remark, createdAt, updatedAt, channel relation, items relation)",
+          "定义 OrderItem 模型 (7 字段: id, orderId, productId, quantity, unitPrice, subtotal, createdAt, order relation, product relation)",
+          "定义 Commission 模型 (6 字段: id, channelId, orderId, amount, status, createdAt, channel relation, order relation)",
+          "定义 AuditLog 模型 (8 字段: id, userId, action, entity, entityId, oldData, newData, createdAt)"
+        ],
+        "depends_on": [],
+        "output": "prisma_schema"
+      },
+      {
+        "step": 2,
+        "title": "配置索引和约束",
+        "description": "添加 15 个索引和 12 个外键约束",
+        "modification_points": [
+          "修改 1 个文件: backend/prisma/schema.prisma (在各 model 中添加 @@index, @@unique, @relation 注解)",
+          "添加 7 个唯一索引: [User.email, Product.sku, Order.orderNo, Channel.code, User.channelId+email (复合), Order.channelId+createdAt (复合), Commission.orderId (unique)]",
+          "添加 8 个普通索引: [Channel.parentId, Channel.level, PricingRule.productId+channelLevel (复合), OrderItem.orderId, OrderItem.productId, AuditLog.userId, AuditLog.entity+entityId (复合), Order.status]"
+        ],
+        "logic_flow": [
+          "User 模型添加: @@unique([email]), @@index([channelId]), @@index([status])",
+          "Channel 模型添加: @@unique([code]), @@index([parentId]), @@index([level]), @@index([status])",
+          "Product 模型添加: @@unique([sku]), @@index([status])",
+          "PricingRule 模型添加: @@index([productId, channelLevel])",
+          "Order 模型添加: @@unique([orderNo]), @@index([channelId, createdAt]), @@index([status])",
+          "OrderItem 模型添加: @@index([orderId]), @@index([productId])",
+          "Commission 模型添加: @@unique([orderId]), @@index([channelId])",
+          "AuditLog 模型添加: @@index([userId]), @@index([entity, entityId]), @@index([createdAt])",
+          "配置 12 个外键关系的 onDelete 和 onUpdate 行为"
+        ],
+        "depends_on": [1],
+        "output": "indexed_schema"
+      },
+      {
+        "step": 3,
+        "title": "创建初始数据库迁移",
+        "description": "执行 Prisma migrate 创建数据库表结构",
+        "modification_points": [
+          "执行 1 个命令: npx prisma migrate dev --name init",
+          "生成 1 个迁移文件: backend/prisma/migrations/[timestamp]_init/migration.sql (约 200 行 SQL)",
+          "应用迁移到数据库: 创建 8 个表、4 个枚举类型、15 个索引"
+        ],
+        "logic_flow": [
+          "运行 npx prisma migrate dev --name init",
+          "Prisma 生成 SQL 迁移脚本",
+          "自动应用迁移到 PostgreSQL 数据库",
+          "验证所有表创建成功 (psql \\dt)",
+          "验证所有索引创建成功 (psql \\di)",
+          "生成 Prisma Client (node_modules/.prisma/client/)"
+        ],
+        "depends_on": [2],
+        "output": "database_migration"
+      },
+      {
+        "step": 4,
+        "title": "创建种子数据脚本",
+        "description": "编写 prisma/seed.ts 创建测试数据",
+        "modification_points": [
+          "创建 1 个文件: backend/prisma/seed.ts (150 行)",
+          "创建 1 个管理员用户: [email: admin@example.com, role: ADMIN]",
+          "创建 4 层级渠道架构: [1 个总代理, 2 个区域代理, 4 个一级经销商, 8 个二级经销商]",
+          "创建 10 个测试产品: [SKU: P001-P010, basePrice: 100-1000]",
+          "创建 12 个定价规则: 覆盖 4 个渠道层级 × 3 个产品"
+        ],
+        "logic_flow": [
+          "导入 Prisma Client",
+          "创建 1 个管理员用户 (密码 bcrypt 加密)",
+          "创建 4 层级渠道 (总代理 → 区域代理 → 一级 → 二级)",
+          "创建 10 个产品 (不同价格区间)",
+          "为每个渠道层级创建定价规则 (折扣率: 0.7 - 0.95)",
+          "配置 package.json prisma.seed 字段",
+          "运行 npx prisma db seed 验证"
+        ],
+        "depends_on": [3],
+        "output": "seed_data"
+      },
+      {
+        "step": 5,
+        "title": "生成 Prisma Client 和类型定义",
+        "description": "生成类型安全的数据库客户端",
+        "modification_points": [
+          "执行 1 个命令: npx prisma generate",
+          "生成 1 个 Prisma Client: node_modules/.prisma/client/",
+          "创建 1 个工具文件: backend/src/utils/prisma.ts (Singleton pattern, 15 行)"
+        ],
+        "logic_flow": [
+          "运行 npx prisma generate",
+          "生成 TypeScript 类型定义 (index.d.ts)",
+          "创建 prisma.ts 单例模式客户端",
+          "配置生产环境连接池参数",
+          "配置开发环境日志级别",
+          "导出全局 prisma 实例"
+        ],
+        "depends_on": [3],
+        "output": "prisma_client"
+      },
+      {
+        "step": 6,
+        "title": "验证数据模型和数据",
+        "description": "验证 8 个表、15 个索引、种子数据",
+        "modification_points": [
+          "执行 3 个验证命令: [npx prisma migrate status, psql 查询表数量, psql 查询种子数据]",
+          "验证 8 个表: 查询 information_schema.tables",
+          "验证 15 个索引: 查询 pg_indexes",
+          "验证种子数据: 查询 User, Channel, Product 表行数"
+        ],
+        "logic_flow": [
+          "检查迁移状态 (npx prisma migrate status)",
+          "连接 PostgreSQL 查询表数量 (SELECT count(*) FROM information_schema.tables WHERE table_schema='public')",
+          "查询索引数量 (SELECT count(*) FROM pg_indexes WHERE schemaname='public')",
+          "查询用户数 (SELECT count(*) FROM \"User\")",
+          "查询渠道数 (SELECT count(*) FROM \"Channel\")",
+          "查询产品数 (SELECT count(*) FROM \"Product\")",
+          "运行类型检查 (npm run type-check)"
+        ],
+        "depends_on": [4, 5],
+        "output": "validation_results"
+      }
+    ],
+    "target_files": [
+      "backend/prisma/schema.prisma",
+      "backend/prisma/seed.ts",
+      "backend/prisma/migrations/[timestamp]_init/migration.sql",
+      "backend/src/utils/prisma.ts",
+      "backend/.env:DATABASE_URL"
+    ]
+  }
+}

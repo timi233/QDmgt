@@ -1,0 +1,151 @@
+{
+  "id": "IMPL-004",
+  "title": "后端API - 任务协同管理模块",
+  "status": "pending",
+  "meta": {
+    "type": "feature",
+    "agent": "@code-developer"
+  },
+  "context": {
+    "requirements": [
+      "实现6个REST API端点: [POST /api/tasks(创建), GET /api/tasks(查询), PUT /api/tasks/:id(更新进度), DELETE /api/tasks/:id(删除), POST /api/tasks/:id/transfer(转接), PUT /api/tasks/:id/priority(调整优先级)]",
+      "实现5个任务状态: [待处理(pending), 进行中(in_progress), 已完成(completed), 已取消(cancelled), 已归档(archived)]",
+      "创建4个后端文件: [tasks.controller.ts(200行), tasks.service.ts(280行), tasks.repository.ts(180行), tasks.types.ts(100行)]",
+      "实现3个自动化定时任务: [逾期检测(每小时), 提醒发送(每天9:00), 自动归档(每天凌晨3:00)]"
+    ],
+    "focus_paths": ["src/modules/tasks", "src/jobs/task-automation"],
+    "acceptance": [
+      "6个API端点测试通过: 验证 npm test -- tasks.controller.spec.ts 所有测试通过",
+      "5个状态流转验证: 验证 pending→in_progress→completed流转正常, cancelled状态可从任意状态转移",
+      "3个定时任务运行: 验证 docker logs backend | grep 'TaskAutomationService' 显示3个定时任务执行日志",
+      "代码覆盖率≥80%: 验证 npm test -- --coverage | grep tasks | grep -E '80|9[0-9]|100'"
+    ],
+    "depends_on": ["IMPL-001", "IMPL-002"],
+    "artifacts": [
+      {
+        "type": "synthesis_specification",
+        "path": ".workflow/WFS-channel-management/.brainstorming/guidance-specification.md",
+        "priority": "highest",
+        "usage": "任务协同设计决策, EP-004(任务状态流转规则), EP-007(任务协作模式)"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/WFS-channel-management/.brainstorming/product-manager/analysis.md",
+        "priority": "high",
+        "usage": "User Story 2.1-2.5: 任务分配, 进度更新, 状态流转, 转接流程, 优先级调整"
+      }
+    ]
+  },
+  "flow_control": {
+    "pre_analysis": [
+      {
+        "step": "load_synthesis_specification",
+        "action": "Load task workflow specifications from EP-004 and EP-007",
+        "commands": [
+          "Read(.workflow/WFS-channel-management/.brainstorming/guidance-specification.md)",
+          "Read(.workflow/WFS-channel-management/.brainstorming/enhancement-recommendations.json)"
+        ],
+        "output_to": "synthesis_specification",
+        "on_error": "fail"
+      },
+      {
+        "step": "load_product_requirements",
+        "action": "Load product manager task management user stories",
+        "commands": [
+          "Read(.workflow/WFS-channel-management/.brainstorming/product-manager/analysis.md)"
+        ],
+        "output_to": "product_spec",
+        "on_error": "fail"
+      }
+    ],
+    "implementation_approach": [
+      {
+        "step": 1,
+        "title": "实现任务Controller和状态流转API",
+        "description": "创建tasks.controller.ts实现6个REST端点, 集成状态机验证",
+        "modification_points": [
+          "创建1个文件: src/modules/tasks/tasks.controller.ts (约200行)",
+          "实现6个端点方法: [create(POST), findAll(GET), update(PUT :id), remove(DELETE :id), transfer(POST :id/transfer), updatePriority(PUT :id/priority)]",
+          "定义5个状态枚举: [TaskStatus.PENDING, TaskStatus.IN_PROGRESS, TaskStatus.COMPLETED, TaskStatus.CANCELLED, TaskStatus.ARCHIVED]",
+          "实现状态转移验证: 使用Guard验证状态转移合法性(例如COMPLETED不能回到PENDING)"
+        ],
+        "logic_flow": [
+          "从[synthesis_specification] EP-004提取任务状态流转规则",
+          "定义Controller类和路由装饰器 @Controller('api/tasks')",
+          "实现create方法: 接收CreateTaskDto(distributor_id, assigned_to, description, priority, deadline), 默认status=PENDING, 记录'task_created'事件",
+          "实现findAll方法: 支持查询参数(user_id, date_range=today/tomorrow/week, status), 应用权限过滤(销售仅查assigned_to=self, 领导查全部)",
+          "实现update方法: 接收UpdateTaskDto(progress, notes, status), 验证状态转移合法性(pending→in_progress, in_progress→completed), 记录'task_updated'事件",
+          "实现transfer方法: 接收TransferTaskDto(target_user_id, reason), 验证权限(仅leader或原负责人申请), 更新assigned_to, 原负责人变为collaborator, 记录'task_transferred'事件",
+          "实现updatePriority方法: 接收UpdatePriorityDto(new_priority), 验证leader权限, 更新priority字段, 发送通知, 记录'task_priority_changed'事件",
+          "实现remove方法: 验证leader权限, 软删除(status=CANCELLED, cancellation_reason), 记录'task_cancelled'事件",
+          "编写12个单元测试覆盖6个端点和状态流转验证"
+        ],
+        "depends_on": [],
+        "output": "tasks_controller"
+      },
+      {
+        "step": 2,
+        "title": "实现任务Service业务逻辑和协作人机制",
+        "description": "创建tasks.service.ts实现业务逻辑, 支持协作人(主负责人/协作人/旁观者), 任务评论",
+        "modification_points": [
+          "创建1个文件: src/modules/tasks/tasks.service.ts (约280行)",
+          "实现8个业务方法: [create, findAll, findOne, update, transfer, updatePriority, cancel, archive]",
+          "实现协作人表设计: task_collaborators表(task_id, user_id, role[owner/collaborator/observer], created_at)",
+          "实现任务评论表: task_comments表(id, task_id, user_id, comment, created_at)"
+        ],
+        "logic_flow": [
+          "从[product_spec] User Story 2.2-2.5提取任务协作需求",
+          "从[synthesis_specification] EP-007提取协作模式规范",
+          "定义Service类, 注入tasksRepository, eventsService, notificationsService",
+          "实现create方法: 创建任务记录, 插入task_collaborators(role=owner), 记录事件",
+          "实现findAll方法: 联表查询task_collaborators, 筛选user_id in (owner/collaborator), 按deadline排序, 分组(today/tomorrow/week)",
+          "实现update方法: 验证状态转移, 更新progress/notes/status, 若status变为IN_PROGRESS且原status=PENDING自动转移, 记录事件",
+          "实现transfer方法: 若leader强制转接则直接更新, 若销售申请则创建审批记录, 审批通过后更新assigned_to, 原owner变为collaborator",
+          "实现updatePriority方法: 更新priority字段, 调用notificationsService发送通知给assigned_to用户",
+          "实现cancel方法: 验证leader权限, 更新status=CANCELLED, 记录cancellation_reason",
+          "实现archive方法: 定时任务调用, 将completed状态且完成时间>3天的任务status改为ARCHIVED",
+          "编写18个单元测试覆盖8个业务方法和协作人逻辑"
+        ],
+        "depends_on": [1],
+        "output": "tasks_service"
+      },
+      {
+        "step": 3,
+        "title": "实现任务自动化定时任务",
+        "description": "创建3个定时任务: 逾期检测(每小时), 提醒发送(每天9:00), 自动归档(每天3:00)",
+        "modification_points": [
+          "创建1个文件: src/jobs/task-automation.service.ts (约180行)",
+          "实现3个Cron方法: [@Cron('0 * * * *') handleOverdueTasks(), @Cron('0 9 * * *') handleTaskReminders(), @Cron('0 3 * * *') handleTaskArchival()]",
+          "集成node-cron调度: 在app.module.ts注册TaskAutomationService",
+          "实现通知发送: 调用notificationsService.sendEmail()或sendSiteNotification()"
+        ],
+        "logic_flow": [
+          "从[synthesis_specification] EP-004提取逾期处理规则和自动化需求",
+          "创建TaskAutomationService类, 注入tasksRepository, notificationsService",
+          "实现handleOverdueTasks: SELECT * FROM tasks WHERE deadline < NOW() AND status NOT IN ('completed','cancelled'), 更新is_overdue=true标记, 统计逾期天数",
+          "实现handleTaskReminders: 查询3类任务(截止前1天, 截止当天, 逾期1-3天), 分别调用notificationsService发送提醒(邮件或站内通知), 记录提醒历史防止重复发送",
+          "实现handleTaskArchival: SELECT * FROM tasks WHERE status='completed' AND completed_at < NOW() - INTERVAL '3 days', 批量更新status=ARCHIVED",
+          "记录定时任务执行日志: logger.log('TaskAutomationService: Processed X overdue tasks')",
+          "编写6个单元测试覆盖3个定时任务的逻辑(使用jest.useFakeTimers模拟时间)"
+        ],
+        "depends_on": [2],
+        "output": "task_automation_service"
+      }
+    ],
+    "target_files": [
+      "src/modules/tasks/tasks.controller.ts",
+      "src/modules/tasks/tasks.service.ts",
+      "src/modules/tasks/tasks.repository.ts",
+      "src/modules/tasks/tasks.types.ts",
+      "src/modules/tasks/dto/create-task.dto.ts",
+      "src/modules/tasks/dto/update-task.dto.ts",
+      "src/modules/tasks/dto/transfer-task.dto.ts",
+      "src/jobs/task-automation.service.ts",
+      "database/migrations/002_create_tasks_table.sql",
+      "database/migrations/003_create_task_collaborators_table.sql",
+      "src/modules/tasks/tasks.controller.spec.ts",
+      "src/modules/tasks/tasks.service.spec.ts",
+      "src/jobs/task-automation.service.spec.ts"
+    ]
+  }
+}

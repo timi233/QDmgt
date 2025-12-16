@@ -1,0 +1,187 @@
+{
+  "id": "IMPL-001",
+  "title": "项目初始化和开发环境配置",
+  "status": "pending",
+  "meta": {
+    "type": "infrastructure",
+    "agent": "@code-developer",
+    "sprint": 1,
+    "priority": "high",
+    "estimated_hours": 8
+  },
+  "context": {
+    "requirements": [
+      "创建 7 个核心目录: [frontend/, backend/, docker/, docs/, .github/, scripts/, data/]",
+      "配置 5 个 Docker 服务: [frontend, backend, postgres, redis, nginx]",
+      "初始化 2 个 package.json: [frontend/package.json, backend/package.json]",
+      "创建 3 个环境配置文件: [.env.example, .env.development, .env.production]",
+      "配置 4 个工具链文件: [.prettierrc, .eslintrc.js, tsconfig.json, .gitignore]"
+    ],
+    "focus_paths": [
+      ".",
+      "frontend/",
+      "backend/",
+      "docker/"
+    ],
+    "acceptance": [
+      "7 个目录创建完成: 验证 ls -d */ | wc -l = 7",
+      "Docker Compose 正常启动: 验证 docker-compose up -d && docker ps | grep -c 'Up' = 5",
+      "前端开发服务器运行: 验证 curl http://localhost:3000 返回 200",
+      "后端 API 服务器运行: 验证 curl http://localhost:4000/health 返回 {\"status\":\"ok\"}",
+      "PostgreSQL 连接成功: 验证 psql -h localhost -U postgres -c 'SELECT 1' 返回 1"
+    ],
+    "depends_on": [],
+    "artifacts": []
+  },
+  "flow_control": {
+    "pre_analysis": [
+      {
+        "step": "check_node_version",
+        "commands": [
+          "bash(node --version | grep -E 'v(20|21|22)')",
+          "bash(npm --version)"
+        ],
+        "output_to": "environment_check",
+        "on_error": "fail_fast"
+      }
+    ],
+    "implementation_approach": [
+      {
+        "step": 1,
+        "title": "创建项目目录结构",
+        "description": "创建 7 个核心目录和基础文件架构",
+        "modification_points": [
+          "创建 7 个目录: [frontend/, backend/, docker/, docs/, .github/workflows/, scripts/, data/]",
+          "创建 5 个 README 文件: [根目录, frontend/, backend/, docker/, docs/]"
+        ],
+        "logic_flow": [
+          "创建根目录下 7 个核心目录",
+          "为每个关键目录添加 README.md 说明",
+          "创建 .gitignore 排除 node_modules/, .env, data/"
+        ],
+        "depends_on": [],
+        "output": "directory_structure"
+      },
+      {
+        "step": 2,
+        "title": "配置 Docker 开发环境",
+        "description": "创建 docker-compose.yml 配置 5 个服务",
+        "modification_points": [
+          "创建 1 个文件: docker-compose.yml (150 行)",
+          "配置 5 个服务: [frontend (Vite), backend (Node.js), postgres (v16), redis (v7), nginx (反向代理)]",
+          "创建 3 个 Dockerfile: [frontend/Dockerfile, backend/Dockerfile, docker/nginx.conf]"
+        ],
+        "logic_flow": [
+          "定义 PostgreSQL 服务 (端口 5432, 卷挂载 data/postgres)",
+          "定义 Redis 服务 (端口 6379, 卷挂载 data/redis)",
+          "定义 Backend 服务 (端口 4000, 依赖 postgres + redis)",
+          "定义 Frontend 服务 (端口 3000, 代理到 backend)",
+          "定义 Nginx 服务 (端口 80, SSL 就绪)",
+          "配置网络和卷管理"
+        ],
+        "depends_on": [1],
+        "output": "docker_configuration"
+      },
+      {
+        "step": 3,
+        "title": "初始化前端项目",
+        "description": "使用 Vite 创建 React + TypeScript 项目并配置 15 个依赖",
+        "modification_points": [
+          "执行命令: npm create vite@latest frontend -- --template react-ts",
+          "安装 15 个生产依赖: [react@18.2, react-dom@18.2, react-router-dom@6.20, @tanstack/react-query@5.14, zustand@4.4, antd@5.12, axios@1.6, zod@3.22, dayjs@1.11, @ant-design/icons@5.2, @ant-design/charts@2.0, ahooks@3.7, react-error-boundary@4.0, clsx@2.1, tailwindcss@3.4]",
+          "配置 3 个工具: [Prettier, ESLint, Tailwind CSS]",
+          "创建 5 个基础目录: [src/components/, src/pages/, src/hooks/, src/stores/, src/services/]"
+        ],
+        "logic_flow": [
+          "使用 Vite 脚手架创建 React 项目",
+          "安装 15 个生产依赖和开发依赖",
+          "配置 tsconfig.json (strict mode, path alias)",
+          "配置 vite.config.ts (代理到 backend API)",
+          "配置 Tailwind CSS 和 PostCSS",
+          "创建 src 下 5 个核心目录结构"
+        ],
+        "depends_on": [1],
+        "output": "frontend_project"
+      },
+      {
+        "step": 4,
+        "title": "初始化后端项目",
+        "description": "创建 Express + TypeScript 项目并配置 12 个依赖",
+        "modification_points": [
+          "创建 1 个文件: backend/package.json (手动配置)",
+          "安装 12 个生产依赖: [express@4.18, @prisma/client@5.7, jsonwebtoken@9.0, bcrypt@5.1, zod@3.22, winston@3.11, morgan@1.10, cors@2.8, helmet@7.1, dotenv@16.3, redis@4.6, express-rate-limit@7.1]",
+          "安装 8 个开发依赖: [typescript@5.3, @types/node, @types/express, @types/jsonwebtoken, @types/bcrypt, ts-node-dev, prisma@5.7, eslint]",
+          "创建 6 个基础目录: [src/routes/, src/controllers/, src/services/, src/middlewares/, src/utils/, src/config/]"
+        ],
+        "logic_flow": [
+          "初始化 npm 项目 (npm init -y)",
+          "安装 12 个生产依赖和 8 个开发依赖",
+          "配置 tsconfig.json (strict mode, esModuleInterop)",
+          "创建 src/app.ts (Express 应用入口)",
+          "创建 src/server.ts (HTTP 服务器)",
+          "创建 src 下 6 个核心目录结构",
+          "配置 nodemon.json 用于热重载"
+        ],
+        "depends_on": [1],
+        "output": "backend_project"
+      },
+      {
+        "step": 5,
+        "title": "配置环境变量和脚本",
+        "description": "创建 3 个环境配置文件和 5 个便捷脚本",
+        "modification_points": [
+          "创建 3 个环境文件: [.env.example (模板), .env.development (本地), .env.production (生产)]",
+          "定义 12 个环境变量: [DATABASE_URL, REDIS_URL, JWT_SECRET, JWT_REFRESH_SECRET, NODE_ENV, PORT, CORS_ORIGIN, LOG_LEVEL, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, API_BASE_URL]",
+          "创建 5 个脚本: [scripts/dev.sh (启动开发环境), scripts/db-reset.sh (重置数据库), scripts/db-seed.sh (种子数据), scripts/test.sh (运行测试), scripts/deploy.sh (部署)]"
+        ],
+        "logic_flow": [
+          "创建 .env.example 包含所有必需环境变量",
+          "复制到 .env.development 并填充默认值",
+          "创建 5 个 shell 脚本并赋予执行权限 (chmod +x)",
+          "在根 package.json 添加 npm scripts 快捷命令"
+        ],
+        "depends_on": [2, 3, 4],
+        "output": "configuration_files"
+      },
+      {
+        "step": 6,
+        "title": "验证开发环境",
+        "description": "启动所有服务并验证 5 个连通性测试",
+        "modification_points": [
+          "执行 1 个命令: docker-compose up -d",
+          "验证 5 个服务: [postgres (端口 5432), redis (端口 6379), backend (端口 4000), frontend (端口 3000), nginx (端口 80)]",
+          "创建 1 个健康检查端点: GET /api/v1/health"
+        ],
+        "logic_flow": [
+          "执行 docker-compose up -d 启动所有容器",
+          "检查 5 个容器状态 (docker ps)",
+          "测试 PostgreSQL 连接 (psql 或 Prisma)",
+          "测试 Redis 连接 (redis-cli ping)",
+          "访问前端页面 (http://localhost:3000)",
+          "访问后端健康检查 (http://localhost:4000/health)",
+          "查看容器日志确认无错误"
+        ],
+        "depends_on": [5],
+        "output": "environment_validation"
+      }
+    ],
+    "target_files": [
+      "docker-compose.yml",
+      "frontend/package.json",
+      "frontend/vite.config.ts",
+      "frontend/tsconfig.json",
+      "frontend/tailwind.config.js",
+      "backend/package.json",
+      "backend/tsconfig.json",
+      "backend/src/app.ts",
+      "backend/src/server.ts",
+      ".env.example",
+      ".env.development",
+      "scripts/dev.sh",
+      "scripts/db-reset.sh",
+      ".gitignore",
+      ".prettierrc",
+      ".eslintrc.js"
+    ]
+  }
+}

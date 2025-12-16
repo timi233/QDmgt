@@ -1,0 +1,160 @@
+{
+  "id": "IMPL-user-001",
+  "title": "用户认证与权限系统实现",
+  "status": "completed",
+  "priority": "high",
+  "meta": {
+    "type": "feature",
+    "agent": "@code-developer",
+    "estimated_complexity": "medium"
+  },
+  "context": {
+    "requirements": [
+      "实现3个认证API: [POST /api/auth/register用户注册, POST /api/auth/login用户登录, POST /api/auth/logout用户登出]",
+      "创建2个权限中间件: [authMiddleware验证JWT Token, roleMiddleware验证用户角色(sales/leader)]",
+      "实现2个核心功能: [JWT Token生成与验证, 密码加密与验证(使用bcrypt)]",
+      "创建4个前端页面: [登录页Login.tsx, 注册页Register.tsx, 用户管理页UserManagement.tsx, 个人资料页Profile.tsx]",
+      "配置3个路由守卫: [公开路由(登录/注册), 销售路由(需sales角色), 领导路由(需leader角色)]"
+    ],
+    "focus_paths": [
+      "backend/controllers/authController.ts",
+      "backend/middleware/authMiddleware.ts",
+      "backend/services/authService.ts",
+      "src/pages/auth/",
+      "src/services/authService.ts"
+    ],
+    "acceptance": [
+      "3个认证API正常工作: 验证by curl测试POST /api/auth/register, /login, /logout返回正确状态码",
+      "JWT Token验证有效: 验证by 携带有效Token访问受保护路由返回200, 无Token返回401",
+      "密码加密存储: 验证by 查询users表password_hash字段为bcrypt hash(非明文)",
+      "4个前端页面渲染正常: 验证by 访问/login, /register, /users, /profile页面无错误",
+      "路由守卫生效: 验证by 未登录访问/dashboard跳转到/login, sales角色访问leader路由返回403"
+    ],
+    "depends_on": ["IMPL-core-001"],
+    "artifacts": [
+      {
+        "type": "synthesis_specification",
+        "path": ".workflow/sessions/WFS-channel-management/brainstorm/guidance-specification.md",
+        "priority": "highest"
+      },
+      {
+        "type": "role_analysis",
+        "path": ".workflow/sessions/WFS-channel-management/brainstorm/system-architect/analysis.md",
+        "priority": "high"
+      }
+    ]
+  },
+  "flow_control": {
+    "pre_analysis": [
+      {
+        "step": "load_synthesis_specification",
+        "commands": [
+          "Read('D:\渠道\.workflow\sessions\WFS-channel-management\brainstorm\guidance-specification.md', offset=260, limit=50)"
+        ],
+        "output_to": "synthesis_api_endpoints",
+        "on_error": "skip_optional"
+      }
+    ],
+    "implementation_approach": [
+      {
+        "step": 1,
+        "title": "实现后端用户认证API",
+        "description": "创建3个认证端点和JWT服务",
+        "modification_points": [
+          "创建backend/controllers/authController.ts: 实现register(), login(), logout()三个方法",
+          "创建backend/services/authService.ts: 实现generateToken(), verifyToken(), hashPassword(), comparePassword()四个工具方法",
+          "修改backend/routes/authRoutes.ts: 定义POST /api/auth/register, POST /api/auth/login, POST /api/auth/logout三条路由"
+        ],
+        "logic_flow": [
+          "安装bcrypt和jsonwebtoken依赖: npm install bcrypt jsonwebtoken @types/bcrypt @types/jsonwebtoken",
+          "在authService.ts中实现密码哈希: hashPassword()使用bcrypt.hash加密密码",
+          "在authService.ts中实现密码验证: comparePassword()使用bcrypt.compare比对",
+          "在authService.ts中实现Token生成: generateToken()使用jwt.sign生成JWT",
+          "在authService.ts中实现Token验证: verifyToken()使用jwt.verify验证JWT",
+          "在authController.ts中实现注册逻辑: 验证输入 → 检查用户名唯一 → 哈希密码 → 保存用户 → 返回成功",
+          "在authController.ts中实现登录逻辑: 查询用户 → 验证密码 → 生成Token → 返回Token",
+          "在authRoutes.ts中注册路由: POST /register, /login, /logout",
+          "测试3个API: 使用curl或Postman验证注册、登录、登出流程"
+        ],
+        "depends_on": [],
+        "output": "auth_api"
+      },
+      {
+        "step": 2,
+        "title": "实现权限验证中间件",
+        "description": "创建2个中间件保护路由",
+        "modification_points": [
+          "创建backend/middleware/authMiddleware.ts: 实现authenticateToken()中间件验证JWT",
+          "创建backend/middleware/roleMiddleware.ts: 实现requireRole('sales')和requireRole('leader')中间件验证角色"
+        ],
+        "logic_flow": [
+          "在authMiddleware.ts中实现JWT验证: 从请求头提取Token → verifyToken() → 附加用户信息到req.user → 下一步",
+          "处理Token缺失: 返回401 Unauthorized",
+          "处理Token过期或无效: 返回403 Forbidden",
+          "在roleMiddleware.ts中实现角色检查: 读取req.user.role → 验证是否匹配要求的角色 → 放行或拒绝",
+          "为所有受保护路由应用authMiddleware: 在路由定义中添加中间件",
+          "为特定角色路由应用roleMiddleware: 如领导看板路由需requireRole('leader')",
+          "测试中间件: 使用有效Token访问受保护路由(200), 无Token访问(401), sales角色访问leader路由(403)"
+        ],
+        "depends_on": [1],
+        "output": "auth_middleware"
+      },
+      {
+        "step": 3,
+        "title": "实现前端登录注册页面",
+        "description": "创建4个用户相关页面",
+        "modification_points": [
+          "创建src/pages/auth/Login.tsx: 实现登录表单(用户名、密码输入框, 登录按钮)",
+          "创建src/pages/auth/Register.tsx: 实现注册表单(用户名、密码、确认密码、角色选择)",
+          "创建src/pages/users/UserManagement.tsx: 实现用户列表和管理界面",
+          "创建src/pages/profile/Profile.tsx: 实现个人资料展示和修改"
+        ],
+        "logic_flow": [
+          "在Login.tsx中创建表单: 使用Ant Design Form组件",
+          "实现登录逻辑: 提交表单 → 调用POST /api/auth/login → 保存Token到localStorage → 跳转到工作台",
+          "在Register.tsx中创建注册表单: 包含用户名、密码、确认密码、角色选择",
+          "实现注册逻辑: 验证密码一致 → 调用POST /api/auth/register → 成功后自动登录",
+          "在UserManagement.tsx中实现用户列表: 调用GET /api/users → 展示表格 → 支持删除和编辑",
+          "在Profile.tsx中实现个人资料: 显示当前用户信息 → 支持修改密码",
+          "添加表单验证: 用户名2-20字符, 密码至少8字符",
+          "测试4个页面: 渲染无错误, 表单提交正常, 跳转逻辑正确"
+        ],
+        "depends_on": [2],
+        "output": "auth_frontend"
+      },
+      {
+        "step": 4,
+        "title": "配置前端路由守卫",
+        "description": "实现3类路由保护",
+        "modification_points": [
+          "创建src/utils/PrivateRoute.tsx: 实现路由守卫组件检查登录状态",
+          "创建src/utils/RoleRoute.tsx: 实现角色守卫组件检查用户角色",
+          "修改src/App.tsx或src/router/index.ts: 配置路由保护规则"
+        ],
+        "logic_flow": [
+          "在PrivateRoute.tsx中实现登录检查: 读取localStorage中的Token → 验证Token有效性 → 有效则渲染子路由, 无效则跳转/login",
+          "在RoleRoute.tsx中实现角色检查: 解析Token获取用户角色 → 验证角色匹配 → 匹配则渲染, 不匹配则显示403或跳转",
+          "配置公开路由: /login, /register无需登录",
+          "配置销售路由: /workspace, /distributors需要登录(sales或leader)",
+          "配置领导路由: /dashboard仅leader可访问",
+          "测试路由守卫: 未登录访问/workspace跳转到/login, sales访问/dashboard显示403"
+        ],
+        "depends_on": [3],
+        "output": "route_guards"
+      }
+    ],
+    "target_files": [
+      "backend/controllers/authController.ts",
+      "backend/services/authService.ts",
+      "backend/middleware/authMiddleware.ts",
+      "backend/middleware/roleMiddleware.ts",
+      "backend/routes/authRoutes.ts",
+      "src/pages/auth/Login.tsx",
+      "src/pages/auth/Register.tsx",
+      "src/pages/users/UserManagement.tsx",
+      "src/pages/profile/Profile.tsx",
+      "src/utils/PrivateRoute.tsx",
+      "src/utils/RoleRoute.tsx"
+    ]
+  }
+}
