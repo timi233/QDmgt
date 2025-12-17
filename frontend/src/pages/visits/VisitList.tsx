@@ -16,6 +16,7 @@ import { useNavigate } from 'react-router-dom'
 import axios from '@/utils/axios'
 import dayjs, { Dayjs } from 'dayjs'
 import { useDistributorOptions } from '../../hooks/useDistributorOptions'
+import { formatRegion } from '@/utils/regionUtils'
 
 const { RangePicker } = DatePicker
 const { Option } = Select
@@ -172,7 +173,7 @@ const VisitList: React.FC = () => {
       render: (_: unknown, record: VisitRecord) => (
         <div>
           <div>{record.distributor?.name}</div>
-          <div style={{ fontSize: 12, color: '#888' }}>{record.distributor?.region}</div>
+          <div style={{ fontSize: 12, color: '#888' }}>{formatRegion(record.distributor?.region)}</div>
         </div>
       ),
     },

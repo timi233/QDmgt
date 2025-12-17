@@ -3,11 +3,23 @@ import { z } from 'zod'
 import * as taskService from '../services/taskService.js'
 
 // Validation schemas
+// Helper to handle null/empty string -> undefined transformation
+const optionalUuid = z.union([
+  z.string().uuid(),
+  z.string().length(0),
+  z.null(),
+]).optional().transform(val => val || undefined)
+
+const optionalString = z.union([
+  z.string(),
+  z.null(),
+]).optional().transform(val => val || undefined)
+
 const createTaskSchema = z.object({
-  distributorId: z.string().uuid(),
-  assignedUserId: z.string().uuid(),
+  distributorId: optionalUuid, // Optional: task may not be linked to a distributor
+  assignedUserId: optionalUuid, // Optional: defaults to creator if not provided
   title: z.string().min(1).max(200),
-  description: z.string().optional(),
+  description: optionalString,
   deadline: z.string().datetime(),
   priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
 })
@@ -43,11 +55,14 @@ const addCommentSchema = z.object({
  */
 export async function create(req: Request, res: Response) {
   try {
+    console.log('[TaskController] Create task request body:', JSON.stringify(req.body, null, 2))
     const validatedData = createTaskSchema.parse(req.body)
+    console.log('[TaskController] Validated data:', JSON.stringify(validatedData, null, 2))
 
     const task = await taskService.createTask(
       {
         ...validatedData,
+        assignedUserId: validatedData.assignedUserId || req.user!.userId, // Default to creator if not provided
         deadline: new Date(validatedData.deadline),
       },
       req.user!.userId
@@ -55,7 +70,9 @@ export async function create(req: Request, res: Response) {
 
     return res.status(201).json({ task })
   } catch (error: any) {
+    console.log('[TaskController] Error:', error)
     if (error instanceof z.ZodError) {
+      console.log('[TaskController] Zod validation errors:', JSON.stringify(error.errors, null, 2))
       return res.status(400).json({
         error: 'Validation failed',
         details: error.errors,
@@ -278,6 +295,24 @@ export async function addComment(req: Request, res: Response) {
       })
     }
 
+    return res.status(400).json({ error: error.message })
+  }
+}
+
+/**
+ * Delete task
+ * DELETE /api/tasks/:id
+ */
+export async function remove(req: Request, res: Response) {
+  try {
+    const result = await taskService.deleteTask(
+      req.params.id,
+      req.user!.userId,
+      req.user!.role
+    )
+
+    return res.json({ message: 'Task deleted successfully', ...result })
+  } catch (error: any) {
     return res.status(400).json({ error: error.message })
   }
 }

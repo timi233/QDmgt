@@ -3,6 +3,7 @@ import { Table, Button, Card, message, Tag, Space, Select } from 'antd'
 import { EyeOutlined, EditOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import axios from '@/utils/axios'
+import { formatRegion } from '@/utils/regionUtils'
 
 const { Option } = Select
 
@@ -91,6 +92,7 @@ const WorkPlanList: React.FC = () => {
       dataIndex: ['distributor', 'region'],
       key: 'region',
       width: 180,
+      render: (region: string) => formatRegion(region),
     },
     {
       title: '年月',

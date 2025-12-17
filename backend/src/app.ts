@@ -62,13 +62,13 @@ app.use(requestLogger)
 // Performance monitoring
 app.use(performanceMonitor)
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later',
-})
-app.use('/api', limiter)
+// Rate limiting disabled for development
+// const limiter = rateLimit({
+//   windowMs: 15 * 60 * 1000, // 15 minutes
+//   max: 100, // limit each IP to 100 requests per windowMs
+//   message: 'Too many requests from this IP, please try again later',
+// })
+// app.use('/api', limiter)
 
 // Health check endpoint
 app.get('/health', (_req: Request, res: Response) => {

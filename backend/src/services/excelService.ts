@@ -72,7 +72,7 @@ export async function exportDistributors(
   }
 
   // Apply permission filter
-  if (userRole !== 'leader') {
+  if (userRole !== 'leader' && userRole !== 'admin') {
     where.ownerUserId = userId
   }
 
@@ -220,6 +220,24 @@ export async function importDistributors(
           row: rowNumber,
           success: false,
           errors: Object.values(validation.errors),
+        })
+        failedCount++
+        continue
+      }
+
+      // Check for existing non-deleted distributor with same name and region
+      const existing = await prisma.distributor.findFirst({
+        where: {
+          name: distributorData.name,
+          region: distributorData.region,
+          deletedAt: null,
+        },
+      })
+      if (existing) {
+        results.push({
+          row: rowNumber,
+          success: false,
+          errors: ['该区域已存在同名分销商'],
         })
         failedCount++
         continue

@@ -4,8 +4,8 @@ import jwt from 'jsonwebtoken'
 const SALT_ROUNDS = 10
 const JWT_SECRET: jwt.Secret =
   process.env.JWT_SECRET || 'your-jwt-secret-change-in-production'
-// 缩短access token过期时间为15分钟
-const ACCESS_TOKEN_EXPIRES_IN = '15m'
+// Access token过期时间8小时（适合工作日使用）
+const ACCESS_TOKEN_EXPIRES_IN = '8h'
 // Refresh token过期时间为7天
 const REFRESH_TOKEN_EXPIRES_IN = '7d'
 

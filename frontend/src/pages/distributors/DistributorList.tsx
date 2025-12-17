@@ -18,6 +18,7 @@ import {
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import axios from '@/utils/axios'
+import { formatRegion } from '@/utils/regionUtils'
 
 const { Search } = Input
 const { Option } = Select
@@ -223,6 +224,7 @@ const DistributorList: React.FC = () => {
       dataIndex: 'region',
       key: 'region',
       width: 180,
+      render: (region: string) => formatRegion(region),
     },
     {
       title: '联系人',

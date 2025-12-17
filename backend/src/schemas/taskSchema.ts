@@ -1,12 +1,19 @@
 import { z } from 'zod';
 
+// Helper: 可选UUID，接受有效UUID、空字符串或null，转换为undefined
+const optionalUuid = (errorMsg: string) => z.union([
+  z.string().uuid(errorMsg),
+  z.string().length(0),
+  z.null(),
+]).optional().transform(val => val || undefined);
+
 /**
  * 创建任务请求体验证
  * POST /api/tasks
  */
 export const createTaskBodySchema = z.object({
-  distributorId: z.string().uuid('无效的经销商ID格式'),
-  assignedUserId: z.string().uuid('无效的用户ID格式'),
+  distributorId: optionalUuid('无效的经销商ID格式'), // 可选：任务可不关联经销商
+  assignedUserId: optionalUuid('无效的用户ID格式'), // 可选：默认为创建者
   title: z.string().min(1, '任务标题不能为空').max(200, '任务标题最多200个字符'),
   description: z.string().optional(),
   deadline: z.string().datetime('无效的日期时间格式'),

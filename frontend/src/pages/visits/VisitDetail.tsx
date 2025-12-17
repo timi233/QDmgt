@@ -19,6 +19,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeftOutlined, EditOutlined, DeleteOutlined, CalendarOutlined } from '@ant-design/icons'
 import axios, { deleteWithConfirm } from '@/utils/axios'
+import { formatRegion } from '@/utils/regionUtils'
 import dayjs from 'dayjs'
 
 const { Text } = Typography
@@ -228,7 +229,7 @@ const VisitDetail: React.FC = () => {
             <Descriptions.Item label="分销商" span={2}>
               <Space direction="vertical" size={0}>
                 <span>{visit.distributor?.name}</span>
-                <Text type="secondary">{visit.distributor?.region}</Text>
+                <Text type="secondary">{formatRegion(visit.distributor?.region)}</Text>
               </Space>
             </Descriptions.Item>
             <Descriptions.Item label="拜访时间">

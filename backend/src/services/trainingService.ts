@@ -10,14 +10,14 @@ import type {
 
 /**
  * Ensure user has permission to manage training participants
- * Only the training creator or a leader can manage participants
+ * Only the training creator, leader or admin can manage participants
  */
 function ensureParticipantManager(
   training: { createdBy: string },
   userId: string,
   userRole: string
 ) {
-  if (userRole === 'leader') {
+  if (userRole === 'leader' || userRole === 'admin') {
     return
   }
 

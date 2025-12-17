@@ -26,6 +26,7 @@ router.post('/', requireAnyRole(['sales', 'leader']), validateBody(createTaskBod
 router.get('/', requireAnyRole(['sales', 'leader']), validateQuery(getTasksQuerySchema), taskController.getAll)
 router.get('/:id', requireAnyRole(['sales', 'leader']), validateParams(taskIdParamSchema), taskController.getById)
 router.put('/:id', requireAnyRole(['sales', 'leader']), validateParams(taskIdParamSchema), validateBody(updateTaskBodySchema), taskController.update)
+router.delete('/:id', requireAnyRole(['sales', 'leader']), validateParams(taskIdParamSchema), requireConfirmation, taskController.remove)
 
 // Task status and assignment
 router.put('/:id/status', requireAnyRole(['sales', 'leader']), validateParams(taskIdParamSchema), validateBody(updateTaskStatusBodySchema), taskController.updateStatus)

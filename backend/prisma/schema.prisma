@@ -101,7 +101,8 @@ model Distributor {
   supportTickets       SupportTicket[]       @relation("DistributorTickets")
   certifications       Certification[]       @relation("DistributorCertifications")
 
-  @@unique([name, region]) // Ensure unique name per region
+  // Note: Unique constraint for active distributors (deleted_at IS NULL) is enforced
+  // via partial index "distributors_name_region_active_key" in migration SQL
   @@index([ownerUserId])
   @@index([deletedAt])
   @@index([channelType])
@@ -111,7 +112,7 @@ model Distributor {
 // Task model - distributor management tasks with collaboration
 model Task {
   id               String   @id @default(uuid())
-  distributorId    String   @map("distributor_id")
+  distributorId    String?  @map("distributor_id") // Optional: task may not be linked to a distributor
   assignedUserId   String   @map("assigned_user_id") // Primary assignee
   creatorUserId    String   @map("creator_user_id") // Task creator
   title            String
@@ -125,7 +126,7 @@ model Task {
   completedAt      DateTime? @map("completed_at")
 
   // Relations
-  distributor     Distributor        @relation("DistributorTasks", fields: [distributorId], references: [id])
+  distributor     Distributor?       @relation("DistributorTasks", fields: [distributorId], references: [id])
   assignedUser    User               @relation("TaskAssignee", fields: [assignedUserId], references: [id])
   creator         User               @relation("TaskCreator", fields: [creatorUserId], references: [id])
   collaborators   TaskCollaborator[] @relation("TaskCollaborators")

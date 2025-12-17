@@ -33,11 +33,11 @@ export interface DistributorQueryOptions {
 /**
  * Apply permission-based filtering
  * Sales users can only see their own distributors
- * Leaders can see all distributors
+ * Leaders and Admins can see all distributors
  */
 function applyPermissionFilter(userId: string, userRole: string) {
-  if (userRole === 'leader') {
-    return {} // Leaders can see all
+  if (userRole === 'leader' || userRole === 'admin') {
+    return {} // Leaders and Admins can see all
   }
   return { ownerUserId: userId } // Sales can only see their own
 }
@@ -49,18 +49,36 @@ export async function createDistributor(
   data: CreateDistributorInput,
   userId: string
 ) {
-  // Validate input
-  const validation = await validateDistributor(data)
-  if (!validation.valid) {
-    throw new Error(`Validation failed: ${JSON.stringify(validation.errors)}`)
-  }
+  console.log('[createDistributor] Input data:', JSON.stringify(data, null, 2))
+  console.log('[createDistributor] User ID:', userId)
 
-  // Filter special characters from text fields
+  // Sanitize text fields first (trim whitespace)
   const sanitizedData = {
     ...data,
     name: data.name.trim(),
+    region: data.region.trim(),
     contactPerson: data.contactPerson.trim(),
     notes: data.notes?.trim(),
+    historicalPerformance: data.historicalPerformance?.trim(),
+  }
+
+  // Check for existing non-deleted distributor with same name and region
+  const existing = await prisma.distributor.findFirst({
+    where: {
+      name: sanitizedData.name,
+      region: sanitizedData.region,
+      deletedAt: null,
+    },
+  })
+  if (existing) {
+    throw new Error('DUPLICATE_NAME_REGION')
+  }
+
+  // Validate sanitized input
+  const validation = await validateDistributor(sanitizedData)
+  console.log('[createDistributor] Validation result:', JSON.stringify(validation, null, 2))
+  if (!validation.valid) {
+    throw new Error(`Validation failed: ${JSON.stringify(validation.errors)}`)
   }
 
   // Create distributor
@@ -125,8 +143,8 @@ export async function getAllDistributors(options: DistributorQueryOptions) {
 
   if (filters.search) {
     where.OR = [
-      { name: { contains: filters.search, mode: 'insensitive' } },
-      { contactPerson: { contains: filters.search, mode: 'insensitive' } },
+      { name: { contains: filters.search } },
+      { contactPerson: { contains: filters.search } },
     ]
   }
 
@@ -250,31 +268,55 @@ export async function updateDistributor(
   // Check permission
   const existing = await getDistributorById(id, userId, userRole)
 
-  // Validate update data
-  if (data.name || data.region) {
-    const validation = await validateDistributor(
-      {
-        name: data.name || existing.name,
-        region: data.region || existing.region,
-        contactPerson: data.contactPerson || existing.contactPerson,
-        phone: data.phone || existing.phone,
-        cooperationLevel: data.cooperationLevel || existing.cooperationLevel,
-        creditLimit: data.creditLimit,
-        tags: data.tags,
+  // Sanitize text fields first (trim whitespace)
+  // Use undefined for empty trimmed strings to avoid overwriting with empty values
+  const sanitizedData: UpdateDistributorInput = {
+    ...data,
+    name: data.name?.trim() || undefined,
+    region: data.region?.trim() || undefined,
+    contactPerson: data.contactPerson?.trim() || undefined,
+    notes: data.notes?.trim() || undefined,
+    historicalPerformance: data.historicalPerformance?.trim() || undefined,
+  }
+
+  // Merge with existing data for validation (use sanitized values, not fallback for provided-but-empty)
+  const mergedData = {
+    name: sanitizedData.name ?? existing.name,
+    region: sanitizedData.region ?? existing.region,
+    contactPerson: sanitizedData.contactPerson ?? existing.contactPerson,
+    phone: sanitizedData.phone ?? existing.phone,
+    cooperationLevel: sanitizedData.cooperationLevel ?? existing.cooperationLevel,
+    creditLimit: sanitizedData.creditLimit,
+    tags: sanitizedData.tags,
+  }
+
+  // Check for duplicate name+region (excluding self and soft-deleted)
+  if (sanitizedData.name || sanitizedData.region) {
+    const duplicate = await prisma.distributor.findFirst({
+      where: {
+        name: mergedData.name,
+        region: mergedData.region,
+        deletedAt: null,
+        id: { not: id },
       },
-      id
-    )
-    if (!validation.valid) {
-      throw new Error(`Validation failed: ${JSON.stringify(validation.errors)}`)
+    })
+    if (duplicate) {
+      throw new Error('DUPLICATE_NAME_REGION')
     }
+  }
+
+  // Always validate merged data
+  const validation = await validateDistributor(mergedData, id)
+  if (!validation.valid) {
+    throw new Error(`Validation failed: ${JSON.stringify(validation.errors)}`)
   }
 
   // Update distributor
   const updated = await prisma.distributor.update({
     where: { id },
     data: {
-      ...data,
-      tags: data.tags ? data.tags.join(',') : undefined,
+      ...sanitizedData,
+      tags: sanitizedData.tags ? sanitizedData.tags.join(',') : undefined,
       updatedAt: new Date(),
     },
     include: {

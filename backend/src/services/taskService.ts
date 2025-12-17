@@ -2,7 +2,7 @@ import prisma from '../utils/prisma.js'
 import { logEvent } from '../utils/eventLogger.js'
 
 export interface CreateTaskInput {
-  distributorId: string
+  distributorId?: string // Optional: task may not be linked to a distributor
   assignedUserId: string
   title: string
   description?: string
@@ -33,11 +33,11 @@ export interface TaskQueryOptions {
 /**
  * Apply permission-based filtering for tasks
  * Sales users can only see tasks assigned to them or where they are collaborators
- * Leaders can see all tasks
+ * Leaders and Admins can see all tasks
  */
 function applyPermissionFilter(userId: string, userRole: string) {
-  if (userRole === 'leader') {
-    return {} // Leaders can see all
+  if (userRole === 'leader' || userRole === 'admin') {
+    return {} // Leaders and Admins can see all
   }
   // Sales can see tasks where they are assignee or collaborator
   return {
@@ -55,13 +55,16 @@ export async function createTask(
   data: CreateTaskInput,
   creatorUserId: string
 ) {
-  // Validate distributor exists
-  const distributor = await prisma.distributor.findUnique({
-    where: { id: data.distributorId },
-  })
+  // Validate distributor exists (only if provided)
+  let distributor = null
+  if (data.distributorId) {
+    distributor = await prisma.distributor.findUnique({
+      where: { id: data.distributorId },
+    })
 
-  if (!distributor) {
-    throw new Error('Distributor not found')
+    if (!distributor) {
+      throw new Error('Distributor not found')
+    }
   }
 
   // Validate assigned user exists
@@ -110,7 +113,7 @@ export async function createTask(
     userId: creatorUserId,
     payload: {
       taskTitle: task.title,
-      distributorName: distributor.name,
+      distributorName: distributor?.name ?? null,
       assignedTo: assignedUser.username,
       priority: task.priority,
       deadline: task.deadline,
@@ -434,7 +437,7 @@ export async function addCollaborator(
   // Check permission - only assignee or leader can add collaborators
   const task = await getTaskById(taskId, addedBy, userRole)
 
-  if (task.assignedUserId !== addedBy && userRole !== 'leader') {
+  if (task.assignedUserId !== addedBy && userRole !== 'leader' && userRole !== 'admin') {
     throw new Error('Only task assignee or leader can add collaborators')
   }
 
@@ -502,7 +505,7 @@ export async function removeCollaborator(
   // Check permission
   const task = await getTaskById(taskId, removedBy, userRole)
 
-  if (task.assignedUserId !== removedBy && userRole !== 'leader') {
+  if (task.assignedUserId !== removedBy && userRole !== 'leader' && userRole !== 'admin') {
     throw new Error('Only task assignee or leader can remove collaborators')
   }
 
@@ -641,4 +644,39 @@ export async function autoArchiveCompletedTasks() {
   return {
     count: result.count,
   }
+}
+
+/**
+ * Delete task (only creator or leader/admin can delete)
+ */
+export async function deleteTask(
+  id: string,
+  userId: string,
+  userRole: string
+) {
+  // Check permission - get task first
+  const task = await getTaskById(id, userId, userRole)
+
+  // Only creator or leader/admin can delete
+  if (task.creatorUserId !== userId && userRole !== 'leader' && userRole !== 'admin') {
+    throw new Error('Only task creator or leader can delete tasks')
+  }
+
+  // Delete task (cascade will handle related records)
+  await prisma.task.delete({
+    where: { id },
+  })
+
+  // Log event
+  await logEvent({
+    eventType: 'task_deleted',
+    entityType: 'task',
+    entityId: id,
+    userId,
+    payload: {
+      taskTitle: task.title,
+    },
+  })
+
+  return { id, title: task.title }
 }

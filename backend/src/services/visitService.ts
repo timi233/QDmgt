@@ -3,10 +3,10 @@ import { logEvent } from '../utils/eventLogger.js'
 
 /**
  * Ensure user has access to visit record
- * Leaders can access all visits, sales can only access their own
+ * Leaders and Admins can access all visits, sales can only access their own
  */
 function ensureVisitAccess(visit: { userId: string }, userId: string, userRole: string) {
-  if (userRole === 'leader') return
+  if (userRole === 'leader' || userRole === 'admin') return
   if (visit.userId !== userId) {
     throw new Error('Visit record not found or access denied')
   }

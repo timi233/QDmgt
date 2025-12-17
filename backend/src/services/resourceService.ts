@@ -12,10 +12,10 @@ type ResourceAccessLevel = ResourceTier | 'all'
 
 /**
  * Map user role to resource tier
- * Leaders get platinum access, sales get silver access
+ * Leaders and Admins get platinum access, sales get silver access
  */
 function getUserTier(role: string): ResourceTier {
-  if (role === 'leader') {
+  if (role === 'leader' || role === 'admin') {
     return 'platinum'
   }
   // Default tier for sales users
@@ -183,9 +183,9 @@ export async function updateResource(
     throw new Error('Resource not found')
   }
 
-  // Only creator or leader can update
+  // Only creator, leader or admin can update
   const user = await prisma.user.findUnique({ where: { id: userId } })
-  if (existing.createdBy !== userId && user?.role !== 'leader') {
+  if (existing.createdBy !== userId && user?.role !== 'leader' && user?.role !== 'admin') {
     throw new Error('Only the resource creator or leader can update it')
   }
 
@@ -228,9 +228,9 @@ export async function deleteResource(id: string, userId: string) {
     throw new Error('Resource not found')
   }
 
-  // Only creator or leader can delete
+  // Only creator, leader or admin can delete
   const user = await prisma.user.findUnique({ where: { id: userId } })
-  if (resource.createdBy !== userId && user?.role !== 'leader') {
+  if (resource.createdBy !== userId && user?.role !== 'leader' && user?.role !== 'admin') {
     throw new Error('Only the resource creator or leader can delete it')
   }
 

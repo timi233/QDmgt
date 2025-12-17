@@ -24,6 +24,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons'
 import axios from '@/utils/axios'
+import { formatRegion } from '@/utils/regionUtils'
 import { Pie, Column } from '@ant-design/charts'
 
 const { Title } = Typography
@@ -335,6 +336,7 @@ const Dashboard: React.FC = () => {
       dataIndex: 'region',
       key: 'region',
       width: 120,
+      render: (region: string) => formatRegion(region),
     },
     {
       title: '联系人',
@@ -583,7 +585,7 @@ const Dashboard: React.FC = () => {
               kpiData.regionDistribution.slice(0, 5).map(item => (
                 <div key={item.region} style={{ marginBottom: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>{item.region}</span>
+                    <span>{formatRegion(item.region)}</span>
                     <span>{item.count} ({item.percentage}%)</span>
                   </div>
                   <Progress percent={item.percentage} showInfo={false} size="small" />

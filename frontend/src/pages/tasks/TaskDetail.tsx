@@ -29,6 +29,7 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import axios from '@/utils/axios'
+import { formatRegion } from '@/utils/regionUtils'
 
 const { Title, Text, Paragraph } = Typography
 const { TextArea } = Input
@@ -106,7 +107,8 @@ export function TaskDetail() {
     const fetchTask = async () => {
       try {
         const response = await axios.get(`${API_BASE_URL}/tasks/${id}`)
-        if (isMounted && response.data.success) {
+        if (isMounted) {
+          // 后端返回 { task }，无 success 字段
           setTask(response.data.task)
         }
       } catch (error: any) {
@@ -129,7 +131,7 @@ export function TaskDetail() {
   const handleStatusChange = async () => {
     if (task && newStatus) {
       try {
-        await axios.patch(`${API_BASE_URL}/tasks/${id}`, { status: newStatus })
+        await axios.put(`${API_BASE_URL}/tasks/${id}/status`, { status: newStatus })
         setTask(prev => prev ? { ...prev, status: newStatus } : null)
         message.success('状态更新成功')
         setStatusModalVisible(false)
@@ -145,7 +147,8 @@ export function TaskDetail() {
         const response = await axios.post(`${API_BASE_URL}/tasks/${id}/comments`, {
           content: newComment
         })
-        if (response.data.success) {
+        // 后端返回 { comment }，无 success 字段
+        if (response.data.comment) {
           setTask(prev => prev ? {
             ...prev,
             comments: [...(prev.comments || []), response.data.comment]
@@ -167,7 +170,8 @@ export function TaskDetail() {
       okType: 'danger',
       onOk: async () => {
         try {
-          await axios.delete(`${API_BASE_URL}/tasks/${id}`)
+          // 后端需要 confirm=true 参数
+          await axios.delete(`${API_BASE_URL}/tasks/${id}?confirm=true`)
           message.success('任务已删除')
           navigate('/workspace')
         } catch (error: any) {
@@ -258,7 +262,7 @@ export function TaskDetail() {
             )}
           </Descriptions.Item>
           <Descriptions.Item label="区域">
-            {task.distributor?.region || '暂无'}
+            {task.distributor?.region ? formatRegion(task.distributor.region) : '暂无'}
           </Descriptions.Item>
           <Descriptions.Item label="创建时间">
             {dayjs(task.createdAt).format('YYYY-MM-DD HH:mm')}

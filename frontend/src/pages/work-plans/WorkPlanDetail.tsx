@@ -14,6 +14,7 @@ import {
 } from 'antd'
 import { ArrowLeftOutlined, EditOutlined } from '@ant-design/icons'
 import axios from '@/utils/axios'
+import { formatRegion } from '@/utils/regionUtils'
 
 const { Title } = Typography
 
@@ -136,7 +137,7 @@ export function WorkPlanDetail() {
             </Tag>
           </Descriptions.Item>
           <Descriptions.Item label="经销商" span={2}>
-            {workPlan.distributor?.name} ({workPlan.distributor?.region})
+            {workPlan.distributor?.name} ({formatRegion(workPlan.distributor?.region || '')})
           </Descriptions.Item>
           <Descriptions.Item label="负责人" span={2}>
             {workPlan.user?.name || workPlan.user?.username}

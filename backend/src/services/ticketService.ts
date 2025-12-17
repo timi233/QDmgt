@@ -16,7 +16,7 @@ function ensureTicketAccess(
   userId: string,
   userRole: string
 ) {
-  if (userRole === 'leader') {
+  if (userRole === 'leader' || userRole === 'admin') {
     return
   }
 
@@ -347,8 +347,8 @@ export async function deleteTicket(id: string, userId: string, userRole: string)
     throw new Error('Ticket not found')
   }
 
-  // Only creator or leader can delete
-  if (ticket.createdBy !== userId && userRole !== 'leader') {
+  // Only creator or leader/admin can delete
+  if (ticket.createdBy !== userId && userRole !== 'leader' && userRole !== 'admin') {
     throw new Error('Only the ticket creator or leader can delete it')
   }
 
@@ -463,8 +463,8 @@ export async function deleteComment(id: string, userId: string, userRole: string
     throw new Error('Comment not found')
   }
 
-  // Only comment author or leader can delete
-  if (comment.userId !== userId && userRole !== 'leader') {
+  // Only comment author or leader/admin can delete
+  if (comment.userId !== userId && userRole !== 'leader' && userRole !== 'admin') {
     throw new Error('Only the comment author or leader can delete it')
   }
 

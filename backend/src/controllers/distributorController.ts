@@ -47,6 +47,9 @@ const querySchema = z.object({
  */
 export async function create(req: Request, res: Response) {
   try {
+    // Debug: Log incoming request body
+    console.log('[Distributor Create] Request body:', JSON.stringify(req.body, null, 2))
+
     // Validate input
     const validatedData = createDistributorSchema.parse(req.body)
 
@@ -71,6 +74,21 @@ export async function create(req: Request, res: Response) {
       })
     }
 
+    if (error instanceof Error && error.message === 'DUPLICATE_NAME_REGION') {
+      return res.status(400).json({
+        error: '该区域已存在同名分销商',
+        details: 'Distributor name already exists in this region',
+      })
+    }
+
+    // Handle Prisma unique constraint violation (race condition fallback)
+    if ((error as any)?.code === 'P2002') {
+      return res.status(400).json({
+        error: '该区域已存在同名分销商',
+        details: 'Distributor name already exists in this region',
+      })
+    }
+
     if (error instanceof Error && error.message.includes('Validation failed')) {
       return res.status(400).json({
         error: error.message,
@@ -78,8 +96,10 @@ export async function create(req: Request, res: Response) {
     }
 
     console.error('Create distributor error:', error)
+    console.error('Error details:', error instanceof Error ? error.stack : 'Unknown error')
     return res.status(500).json({
       error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error',
     })
   }
 }
@@ -192,6 +212,21 @@ export async function update(req: Request, res: Response) {
       return res.status(400).json({
         error: 'Validation failed',
         details: error.errors,
+      })
+    }
+
+    if (error instanceof Error && error.message === 'DUPLICATE_NAME_REGION') {
+      return res.status(400).json({
+        error: '该区域已存在同名分销商',
+        details: 'Distributor name already exists in this region',
+      })
+    }
+
+    // Handle Prisma unique constraint violation (race condition fallback)
+    if ((error as any)?.code === 'P2002') {
+      return res.status(400).json({
+        error: '该区域已存在同名分销商',
+        details: 'Distributor name already exists in this region',
       })
     }
 

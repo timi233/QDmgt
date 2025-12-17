@@ -40,8 +40,9 @@ export function CreateTask() {
         const response = await axios.get(`${API_BASE_URL}/distributors`, {
           params: { page: 1, limit: 100 }
         })
-        if (isMounted && response.data.success) {
-          setDistributors(response.data.distributors)
+        if (isMounted) {
+          // 后端返回 { distributors, pagination }，无 success 字段
+          setDistributors(response.data.distributors || [])
         }
       } catch (error: any) {
         if (isMounted) {
@@ -60,7 +61,8 @@ export function CreateTask() {
         ...values,
         deadline: values.deadline.toISOString()
       })
-      if (response.data.success) {
+      // 后端返回 { task }，HTTP 201 表示成功
+      if (response.data.task) {
         message.success('任务创建成功!')
         navigate('/workspace')
       } else {

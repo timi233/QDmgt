@@ -13,6 +13,7 @@ import {
 } from 'antd'
 import { EditOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons'
 import axios, { deleteWithConfirm } from '@/utils/axios'
+import { formatRegion } from '@/utils/regionUtils'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api'
 
@@ -187,7 +188,7 @@ const DistributorDetail: React.FC = () => {
       >
         <Descriptions bordered column={2}>
           <Descriptions.Item label="名称">{distributor.name}</Descriptions.Item>
-          <Descriptions.Item label="区域">{distributor.region}</Descriptions.Item>
+          <Descriptions.Item label="区域">{formatRegion(distributor.region)}</Descriptions.Item>
           <Descriptions.Item label="联系人">{distributor.contactPerson}</Descriptions.Item>
           <Descriptions.Item label="电话">{distributor.phone}</Descriptions.Item>
           <Descriptions.Item label="合作等级">
@@ -199,9 +200,9 @@ const DistributorDetail: React.FC = () => {
             {distributor.creditLimit?.toLocaleString()} 万元
           </Descriptions.Item>
           <Descriptions.Item label="标签" span={2}>
-            {distributor.tags?.map((tag: string) => (
-              <Tag key={tag}>{tag}</Tag>
-            )) || '暂无标签'}
+            {Array.isArray(distributor.tags) && distributor.tags.length > 0
+              ? distributor.tags.map((tag: string) => <Tag key={tag}>{tag}</Tag>)
+              : '暂无标签'}
           </Descriptions.Item>
           <Descriptions.Item label="负责人">
             {distributor.owner?.name || distributor.owner?.username}
