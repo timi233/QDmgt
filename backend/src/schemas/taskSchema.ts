@@ -1,11 +1,15 @@
 import { z } from 'zod';
 
-// Helper: 可选UUID，接受有效UUID、空字符串或null，转换为undefined
+// Helper: 可选UUID，空字符串->undefined，null保留用于清空关联
 const optionalUuid = (errorMsg: string) => z.union([
   z.string().uuid(errorMsg),
   z.string().length(0),
   z.null(),
-]).optional().transform(val => val || undefined);
+]).optional().transform(val => {
+  if (val === '') return undefined;
+  if (val === null) return null;
+  return val;
+});
 
 /**
  * 创建任务请求体验证
@@ -33,6 +37,7 @@ export const updateTaskBodySchema = z.object({
   priority: z.enum(['low', 'medium', 'high', 'urgent'], {
     errorMap: () => ({ message: '优先级必须是low、medium、high或urgent之一' }),
   }).optional(),
+  distributorId: optionalUuid('无效的经销商ID格式'),
 });
 
 /**

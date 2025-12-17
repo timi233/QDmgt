@@ -15,6 +15,7 @@ export interface UpdateTaskInput {
   description?: string
   deadline?: Date
   priority?: string
+  distributorId?: string | null
 }
 
 export interface TaskQueryOptions {
@@ -275,6 +276,16 @@ export async function updateTask(
 ) {
   // Check permission
   const task = await getTaskById(id, userId, userRole)
+
+  // Validate distributor if provided (null means clearing the association)
+  if (data.distributorId !== undefined && data.distributorId !== null) {
+    const distributor = await prisma.distributor.findUnique({
+      where: { id: data.distributorId },
+    })
+    if (!distributor) {
+      throw new Error('Distributor not found')
+    }
+  }
 
   const updatedTask = await prisma.task.update({
     where: { id },

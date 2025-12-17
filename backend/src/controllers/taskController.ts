@@ -139,11 +139,10 @@ export async function getById(req: Request, res: Response) {
  */
 export async function update(req: Request, res: Response) {
   try {
-    const validatedData = updateTaskSchema.parse(req.body)
-
-    const updateData: any = { ...validatedData }
-    if (validatedData.deadline) {
-      updateData.deadline = new Date(validatedData.deadline)
+    // req.body already validated by validateBody(updateTaskBodySchema) middleware
+    const updateData: any = { ...req.body }
+    if (updateData.deadline) {
+      updateData.deadline = new Date(updateData.deadline)
     }
 
     const task = await taskService.updateTask(

@@ -13,6 +13,7 @@ import DistributorDetail from './pages/distributors/DistributorDetail'
 import DistributorEdit from './pages/distributors/DistributorEdit'
 import { Workspace } from './pages/workspace/Workspace'
 import { TaskDetail } from './pages/tasks/TaskDetail'
+import { EditTask } from './pages/tasks/EditTask'
 import Dashboard from './pages/dashboard/Dashboard'
 import TargetList from './pages/targets/TargetList'
 import TargetCreate from './pages/targets/TargetCreate'
@@ -97,6 +98,14 @@ function AppContent() {
           />
 
           {/* Task routes */}
+          <Route
+            path="/tasks/:id/edit"
+            element={
+              <PrivateRoute>
+                <EditTask />
+              </PrivateRoute>
+            }
+          />
           <Route
             path="/tasks/:id"
             element={
