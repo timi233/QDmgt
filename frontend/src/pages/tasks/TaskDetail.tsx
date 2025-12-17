@@ -25,7 +25,8 @@ import {
   CalendarOutlined,
   CommentOutlined,
   SendOutlined,
-  SwapOutlined
+  SwapOutlined,
+  TeamOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import axios from '@/utils/axios'
@@ -34,6 +35,13 @@ import { formatRegion } from '@/utils/regionUtils'
 const { Title, Text, Paragraph } = Typography
 const { TextArea } = Input
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api'
+
+interface User {
+  id: string
+  username: string
+  name?: string
+  role: string
+}
 
 interface Task {
   id: string
@@ -98,6 +106,11 @@ export function TaskDetail() {
   const [newComment, setNewComment] = useState('')
   const [statusModalVisible, setStatusModalVisible] = useState(false)
   const [newStatus, setNewStatus] = useState<Task['status'] | ''>('')
+  const [assignModalVisible, setAssignModalVisible] = useState(false)
+  const [users, setUsers] = useState<User[]>([])
+  const [selectedUserId, setSelectedUserId] = useState<string>('')
+  const [assignReason, setAssignReason] = useState('')
+  const [assigning, setAssigning] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -138,6 +151,47 @@ export function TaskDetail() {
       } catch (error: any) {
         message.error(error.response?.data?.error || '状态更新失败')
       }
+    }
+  }
+
+  const openAssignModal = async () => {
+    try {
+      // 用户列表在admin路由下
+      const response = await axios.get(`${API_BASE_URL}/admin/users`)
+      setUsers(response.data.users || [])
+      setSelectedUserId(task?.assignedUser?.id || '')
+      setAssignReason('')
+      setAssignModalVisible(true)
+    } catch (error: any) {
+      message.error(error.response?.data?.error || '获取用户列表失败')
+    }
+  }
+
+  const handleAssign = async () => {
+    if (!selectedUserId) {
+      message.warning('请选择要指派的用户')
+      return
+    }
+    setAssigning(true)
+    try {
+      const payload: { assignedUserId: string; reason?: string } = {
+        assignedUserId: selectedUserId
+      }
+      if (assignReason.trim()) {
+        payload.reason = assignReason.trim()
+      }
+      const response = await axios.put(`${API_BASE_URL}/tasks/${id}/assign`, payload)
+      // 只更新assignedUser，保留其他数据
+      setTask(prev => prev ? {
+        ...prev,
+        assignedUser: response.data.task.assignedUser
+      } : null)
+      message.success('指派成功')
+      setAssignModalVisible(false)
+    } catch (error: any) {
+      message.error(error.response?.data?.error || '指派失败')
+    } finally {
+      setAssigning(false)
     }
   }
 
@@ -222,6 +276,9 @@ export function TaskDetail() {
           <Space>
             <Button icon={<SwapOutlined />} onClick={() => setStatusModalVisible(true)}>
               更改状态
+            </Button>
+            <Button icon={<TeamOutlined />} onClick={openAssignModal}>
+              指派
             </Button>
             <Button icon={<EditOutlined />} onClick={() => navigate(`/tasks/${id}/edit`)}>
               编辑
@@ -349,6 +406,42 @@ export function TaskDetail() {
             { label: '已完成', value: 'completed' }
           ]}
         />
+      </Modal>
+
+      {/* Assign Modal */}
+      <Modal
+        title="指派任务"
+        open={assignModalVisible}
+        onOk={handleAssign}
+        onCancel={() => setAssignModalVisible(false)}
+        confirmLoading={assigning}
+        okText="确认指派"
+        cancelText="取消"
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Text strong style={{ display: 'block', marginBottom: 8 }}>选择用户</Text>
+          <Select
+            style={{ width: '100%' }}
+            placeholder="请选择要指派的用户"
+            value={selectedUserId || undefined}
+            onChange={setSelectedUserId}
+            showSearch
+            optionFilterProp="label"
+            options={users.map(user => ({
+              value: user.id,
+              label: `${user.username}${user.name ? ` (${user.name})` : ''} - ${user.role === 'leader' ? '主管' : '销售'}`
+            }))}
+          />
+        </div>
+        <div>
+          <Text strong style={{ display: 'block', marginBottom: 8 }}>指派原因（可选）</Text>
+          <TextArea
+            rows={3}
+            placeholder="请输入指派原因..."
+            value={assignReason}
+            onChange={e => setAssignReason(e.target.value)}
+          />
+        </div>
       </Modal>
     </div>
   )
