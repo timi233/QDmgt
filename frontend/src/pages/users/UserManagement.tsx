@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Table, Card, Typography, Tag, Space, Button, message, Modal, Form, Select, Avatar, Input, Popconfirm } from 'antd'
-import { EditOutlined, UserOutlined, SearchOutlined, SyncOutlined, DeleteOutlined } from '@ant-design/icons'
+import { EditOutlined, UserOutlined, SearchOutlined, SyncOutlined, DeleteOutlined, TeamOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import axios from '@/utils/axios'
+import LeaderScopeModal from '@/components/LeaderScopeModal'
 
 const { Title } = Typography
 const { Option } = Select
@@ -65,6 +66,8 @@ export default function UserManagement() {
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [searchText, setSearchText] = useState('')
   const [form] = Form.useForm()
+  const [scopeModalVisible, setScopeModalVisible] = useState(false)
+  const [scopeLeader, setScopeLeader] = useState<User | null>(null)
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 
@@ -216,7 +219,7 @@ export default function UserManagement() {
     {
       title: '操作',
       key: 'actions',
-      width: 180,
+      width: 260,
       render: (_, record) => (
         <Space>
           <Button
@@ -226,6 +229,18 @@ export default function UserManagement() {
           >
             编辑角色
           </Button>
+          {record.role === 'leader' && (
+            <Button
+              type="link"
+              icon={<TeamOutlined />}
+              onClick={() => {
+                setScopeLeader(record)
+                setScopeModalVisible(true)
+              }}
+            >
+              管理范围
+            </Button>
+          )}
           {record.role !== 'admin' && (
             <Popconfirm
               title="确定要删除这个用户吗？"
@@ -307,6 +322,19 @@ export default function UserManagement() {
             </Form.Item>
           </Form>
         </Modal>
+
+        {scopeLeader && (
+          <LeaderScopeModal
+            visible={scopeModalVisible}
+            leaderId={scopeLeader.id}
+            leaderName={scopeLeader.name || scopeLeader.username || '未知用户'}
+            onClose={() => {
+              setScopeModalVisible(false)
+              setScopeLeader(null)
+            }}
+            onSuccess={() => {}}
+          />
+        )}
       </Card>
     </div>
   )

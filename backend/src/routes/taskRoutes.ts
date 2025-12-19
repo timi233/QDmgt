@@ -4,6 +4,7 @@ import { authenticateToken } from '../middlewares/authMiddleware.js'
 import { requireAnyRole } from '../middlewares/roleMiddleware.js'
 import { validateQuery, validateBody, validateParams } from '../middlewares/validateMiddleware.js'
 import { requireConfirmation } from '../middlewares/confirmationMiddleware.js'
+import { dataChangeAudit } from '../middlewares/auditLogger.js'
 import {
   createTaskBodySchema,
   updateTaskBodySchema,
@@ -22,15 +23,15 @@ const router = Router()
 router.use(authenticateToken)
 
 // Task CRUD operations
-router.post('/', requireAnyRole(['sales', 'leader']), validateBody(createTaskBodySchema), taskController.create)
+router.post('/', requireAnyRole(['sales', 'leader']), validateBody(createTaskBodySchema), dataChangeAudit('CREATE', 'Task'), taskController.create)
 router.get('/', requireAnyRole(['sales', 'leader']), validateQuery(getTasksQuerySchema), taskController.getAll)
 router.get('/:id', requireAnyRole(['sales', 'leader']), validateParams(taskIdParamSchema), taskController.getById)
-router.put('/:id', requireAnyRole(['sales', 'leader']), validateParams(taskIdParamSchema), validateBody(updateTaskBodySchema), taskController.update)
-router.delete('/:id', requireAnyRole(['sales', 'leader']), validateParams(taskIdParamSchema), requireConfirmation, taskController.remove)
+router.put('/:id', requireAnyRole(['sales', 'leader']), validateParams(taskIdParamSchema), validateBody(updateTaskBodySchema), dataChangeAudit('UPDATE', 'Task'), taskController.update)
+router.delete('/:id', requireAnyRole(['sales', 'leader']), validateParams(taskIdParamSchema), requireConfirmation, dataChangeAudit('DELETE', 'Task'), taskController.remove)
 
 // Task status and assignment
-router.put('/:id/status', requireAnyRole(['sales', 'leader']), validateParams(taskIdParamSchema), validateBody(updateTaskStatusBodySchema), taskController.updateStatus)
-router.put('/:id/assign', requireAnyRole(['sales', 'leader']), validateParams(taskIdParamSchema), validateBody(assignTaskBodySchema), taskController.assign)
+router.put('/:id/status', requireAnyRole(['sales', 'leader']), validateParams(taskIdParamSchema), validateBody(updateTaskStatusBodySchema), dataChangeAudit('UPDATE', 'Task'), taskController.updateStatus)
+router.put('/:id/assign', requireAnyRole(['sales', 'leader']), validateParams(taskIdParamSchema), validateBody(assignTaskBodySchema), dataChangeAudit('UPDATE', 'Task'), taskController.assign)
 
 // Collaboration features
 router.post('/:id/collaborators', requireAnyRole(['sales', 'leader']), validateParams(taskIdParamSchema), validateBody(addCollaboratorBodySchema), taskController.addCollaborator)

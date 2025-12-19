@@ -10,10 +10,18 @@ import {
   message,
   Spin,
   Popconfirm,
+  Modal,
+  Form,
+  Select,
+  InputNumber,
+  Input,
 } from 'antd'
-import { EditOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons'
+import { EditOutlined, DeleteOutlined, ArrowLeftOutlined, AimOutlined, HeartOutlined } from '@ant-design/icons'
 import axios, { deleteWithConfirm } from '@/utils/axios'
 import { formatRegion } from '@/utils/regionUtils'
+
+const { TextArea } = Input
+const { Option } = Select
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api'
 
@@ -22,6 +30,9 @@ const DistributorDetail: React.FC = () => {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [distributor, setDistributor] = useState<any>(null)
+  const [isTargetModalVisible, setIsTargetModalVisible] = useState(false)
+  const [targetForm] = Form.useForm()
+  const [targetType, setTargetType] = useState('yearly')
 
   const fetchDistributor = async () => {
     setLoading(true)
@@ -51,6 +62,22 @@ const DistributorDetail: React.FC = () => {
     }
   }
 
+  const resetTargetModal = () => {
+    setIsTargetModalVisible(false)
+    targetForm.resetFields()
+    setTargetType('yearly')
+  }
+
+  const handleTargetSubmit = async (values: any) => {
+    try {
+      await axios.post(`${API_BASE_URL}/distributor-targets/for-distributor/${id}`, values)
+      message.success('目标设置成功')
+      resetTargetModal()
+    } catch (error: any) {
+      message.error(error.response?.data?.error || '设置目标失败')
+    }
+  }
+
   const getLevelColor = (level: string) => {
     const colors: Record<string, string> = {
       bronze: 'default',
@@ -69,6 +96,16 @@ const DistributorDetail: React.FC = () => {
       platinum: '铂金',
     }
     return labels[level] || level
+  }
+
+  const getHealthStatusMeta = (status?: string) => {
+    const meta: Record<string, { label: string; color: string }> = {
+      healthy: { label: '健康', color: 'green' },
+      warning: { label: '预警', color: 'orange' },
+      at_risk: { label: '风险', color: 'red' },
+      dormant: { label: '沉睡', color: 'default' },
+    }
+    return status ? (meta[status] || { label: status, color: 'default' }) : { label: '-', color: 'default' }
   }
 
   const getStatusLabel = (status: string) => {
@@ -166,6 +203,9 @@ const DistributorDetail: React.FC = () => {
         }
         extra={
           <Space>
+            <Button icon={<AimOutlined />} onClick={() => setIsTargetModalVisible(true)}>
+              设置目标
+            </Button>
             <Button
               type="primary"
               icon={<EditOutlined />}
@@ -210,16 +250,22 @@ const DistributorDetail: React.FC = () => {
           <Descriptions.Item label="创建时间">
             {new Date(distributor.createdAt).toLocaleString()}
           </Descriptions.Item>
-          {distributor.historicalPerformance && (
-            <Descriptions.Item label="历史业绩" span={2}>
-              {distributor.historicalPerformance}
-            </Descriptions.Item>
-          )}
-          {distributor.notes && (
-            <Descriptions.Item label="备注" span={2}>
-              {distributor.notes}
-            </Descriptions.Item>
-          )}
+          <Descriptions.Item label="健康度">
+            <Tag color={!distributor.healthScore ? 'default' : distributor.healthScore >= 80 ? 'green' : distributor.healthScore >= 60 ? 'blue' : 'orange'}>
+              {typeof distributor.healthScore === 'number' ? Math.round(distributor.healthScore) : '-'}
+            </Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="健康状态">
+            <Tag color={getHealthStatusMeta(distributor.healthStatus).color}>
+              {getHealthStatusMeta(distributor.healthStatus).label}
+            </Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="历史业绩" span={2}>
+            {distributor.historicalPerformance || '无'}
+          </Descriptions.Item>
+          <Descriptions.Item label="备注" span={2}>
+            {distributor.notes || '无'}
+          </Descriptions.Item>
         </Descriptions>
       </Card>
 
@@ -232,6 +278,71 @@ const DistributorDetail: React.FC = () => {
           locale={{ emptyText: '暂无关联任务' }}
         />
       </Card>
+
+      <Modal
+        title="设置经销商目标"
+        open={isTargetModalVisible}
+        onCancel={resetTargetModal}
+        onOk={() => targetForm.submit()}
+        width={600}
+        destroyOnClose
+      >
+        <Form
+          form={targetForm}
+          layout="vertical"
+          onFinish={handleTargetSubmit}
+          initialValues={{ targetType: 'yearly', year: new Date().getFullYear() }}
+        >
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+            <Form.Item name="targetType" label="目标类型" rules={[{ required: true }]}>
+              <Select onChange={(v: string) => setTargetType(v)}>
+                <Option value="yearly">年度目标</Option>
+                <Option value="quarterly">季度目标</Option>
+                <Option value="monthly">月度目标</Option>
+              </Select>
+            </Form.Item>
+            <Form.Item name="year" label="年度" rules={[{ required: true }]}>
+              <Select>
+                {[2024, 2025, 2026].map(y => <Option key={y} value={y}>{y}年</Option>)}
+              </Select>
+            </Form.Item>
+            {targetType === 'quarterly' && (
+              <Form.Item name="quarter" label="季度" rules={[{ required: true }]} preserve={false}>
+                <Select>
+                  {['Q1', 'Q2', 'Q3', 'Q4'].map(q => <Option key={q} value={q}>{q}</Option>)}
+                </Select>
+              </Form.Item>
+            )}
+            {targetType === 'monthly' && (
+              <Form.Item name="month" label="月份" rules={[{ required: true }]} preserve={false}>
+                <Select>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map(m => <Option key={m} value={m}>{m}月</Option>)}
+                </Select>
+              </Form.Item>
+            )}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <Form.Item name="newSignTarget" label="新签目标 (万元)">
+              <InputNumber style={{ width: '100%' }} min={0} />
+            </Form.Item>
+            <Form.Item name="coreOpportunity" label="核心商机目标 (万元)">
+              <InputNumber style={{ width: '100%' }} min={0} />
+            </Form.Item>
+            <Form.Item name="coreRevenue" label="核心业绩目标 (万元)">
+              <InputNumber style={{ width: '100%' }} min={0} />
+            </Form.Item>
+            <Form.Item name="highValueOpp" label="高价值商机目标 (万元)">
+              <InputNumber style={{ width: '100%' }} min={0} />
+            </Form.Item>
+            <Form.Item name="highValueRevenue" label="高价值业绩目标 (万元)">
+              <InputNumber style={{ width: '100%' }} min={0} />
+            </Form.Item>
+          </div>
+          <Form.Item name="note" label="备注">
+            <TextArea rows={2} />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   )
 }

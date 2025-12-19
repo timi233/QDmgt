@@ -1,5 +1,6 @@
 import prisma from '../utils/prisma.js'
 import { validateDistributor } from '../utils/validators.js'
+import { getAccessibleUserIds } from '../utils/permissionScope.js'
 
 export interface CreateDistributorInput {
   name: string
@@ -32,14 +33,16 @@ export interface DistributorQueryOptions {
 
 /**
  * Apply permission-based filtering
- * Sales users can only see their own distributors
- * Leaders and Admins can see all distributors
+ * Admin: can see all distributors
+ * Leader: can see distributors owned by self or managed sales
+ * Sales: can only see their own distributors
  */
-function applyPermissionFilter(userId: string, userRole: string) {
-  if (userRole === 'leader' || userRole === 'admin') {
-    return {} // Leaders and Admins can see all
+async function applyPermissionFilter(userId: string, userRole: string) {
+  if (userRole === 'admin') {
+    return {}
   }
-  return { ownerUserId: userId } // Sales can only see their own
+  const accessibleUserIds = await getAccessibleUserIds(userId, userRole)
+  return { ownerUserId: { in: accessibleUserIds } }
 }
 
 /**
@@ -127,9 +130,10 @@ export async function getAllDistributors(options: DistributorQueryOptions) {
   const { userId, userRole, page = 1, limit = 20, filters = {} } = options
 
   // Build where clause
+  const permissionFilter = await applyPermissionFilter(userId, userRole)
   const where: any = {
     deletedAt: null,
-    ...applyPermissionFilter(userId, userRole),
+    ...permissionFilter,
   }
 
   // Apply filters
@@ -208,10 +212,11 @@ export async function getDistributorById(
   userId: string,
   userRole: string
 ) {
+  const permissionFilter = await applyPermissionFilter(userId, userRole)
   const where: any = {
     id,
     deletedAt: null,
-    ...applyPermissionFilter(userId, userRole),
+    ...permissionFilter,
   }
 
   const distributor = await prisma.distributor.findFirst({
@@ -269,14 +274,15 @@ export async function updateDistributor(
   const existing = await getDistributorById(id, userId, userRole)
 
   // Sanitize text fields first (trim whitespace)
-  // Use undefined for empty trimmed strings to avoid overwriting with empty values
+  // Required fields coerce empty strings to undefined; optional fields may be cleared
   const sanitizedData: UpdateDistributorInput = {
     ...data,
     name: data.name?.trim() || undefined,
     region: data.region?.trim() || undefined,
     contactPerson: data.contactPerson?.trim() || undefined,
-    notes: data.notes?.trim() || undefined,
-    historicalPerformance: data.historicalPerformance?.trim() || undefined,
+    notes: data.notes !== undefined ? data.notes.trim() : undefined,
+    historicalPerformance: data.historicalPerformance !== undefined ? data.historicalPerformance.trim() : undefined,
+    creditLimit: data.creditLimit === null ? 0 : data.creditLimit,
   }
 
   // Merge with existing data for validation (use sanitized values, not fallback for provided-but-empty)
@@ -316,7 +322,7 @@ export async function updateDistributor(
     where: { id },
     data: {
       ...sanitizedData,
-      tags: sanitizedData.tags ? sanitizedData.tags.join(',') : undefined,
+      tags: sanitizedData.tags !== undefined ? sanitizedData.tags.join(',') : undefined,
       updatedAt: new Date(),
     },
     include: {

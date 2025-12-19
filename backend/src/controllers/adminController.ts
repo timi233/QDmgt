@@ -2,6 +2,10 @@ import { Request, Response } from 'express'
 import { z } from 'zod'
 import prisma from '../utils/prisma.js'
 import { auditLogger } from '../utils/logger.js'
+import {
+  getLeaderManagedSales,
+  setLeaderManagedSales,
+} from '../utils/permissionScope.js'
 
 const assignRoleSchema = z.object({
   role: z.enum(['sales', 'leader'], {
@@ -19,7 +23,9 @@ const updateRoleSchema = z.object({
  */
 export async function getAllUsers(req: Request, res: Response) {
   try {
+    const includeDeleted = req.query.includeDeleted === 'true'
     const users = await prisma.user.findMany({
+      where: includeDeleted ? {} : { deletedAt: null },
       select: {
         id: true,
         username: true,
@@ -32,6 +38,7 @@ export async function getAllUsers(req: Request, res: Response) {
         status: true,
         createdAt: true,
         updatedAt: true,
+        deletedAt: true,
       },
       orderBy: { createdAt: 'desc' },
     })
@@ -306,7 +313,15 @@ export async function deleteUser(req: Request, res: Response) {
       return res.status(400).json({ error: '不能删除管理员账户' })
     }
 
-    await prisma.user.delete({ where: { id } })
+    if (targetUser.deletedAt) {
+      return res.status(400).json({ error: '用户已被删除' })
+    }
+
+    // Soft delete: set deletedAt timestamp
+    await prisma.user.update({
+      where: { id },
+      data: { deletedAt: new Date() }
+    })
 
     auditLogger.logUserAction({
       userId: req.user!.userId,
@@ -324,6 +339,82 @@ export async function deleteUser(req: Request, res: Response) {
     })
   } catch (error) {
     console.error('deleteUser error:', error)
+    return res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+/**
+ * Get leader's managed sales scope
+ * GET /api/admin/users/:id/scope
+ */
+export async function getLeaderScope(req: Request, res: Response) {
+  try {
+    const { id } = req.params
+
+    const leader = await prisma.user.findUnique({ where: { id } })
+    if (!leader) {
+      return res.status(404).json({ error: '用户不存在' })
+    }
+    if (leader.role !== 'leader') {
+      return res.status(400).json({ error: '该用户不是主管' })
+    }
+
+    const managedSales = await getLeaderManagedSales(id)
+
+    return res.status(200).json({
+      leaderId: id,
+      managedSales,
+    })
+  } catch (error) {
+    console.error('getLeaderScope error:', error)
+    return res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+/**
+ * Set leader's managed sales scope
+ * PUT /api/admin/users/:id/scope
+ */
+export async function updateLeaderScope(req: Request, res: Response) {
+  try {
+    const { id } = req.params
+    const { salesIds } = z
+      .object({ salesIds: z.array(z.string()) })
+      .parse(req.body)
+
+    const leader = await prisma.user.findUnique({ where: { id } })
+    if (!leader) {
+      return res.status(404).json({ error: '用户不存在' })
+    }
+    if (leader.role !== 'leader') {
+      return res.status(400).json({ error: '该用户不是主管' })
+    }
+
+    await setLeaderManagedSales(id, salesIds)
+
+    auditLogger.logUserAction({
+      userId: req.user!.userId,
+      action: 'UPDATE_LEADER_SCOPE',
+      resource: 'User',
+      resourceId: id,
+      ip: req.ip || 'unknown',
+      userAgent: req.get('user-agent'),
+      success: true,
+      details: { salesCount: salesIds.length },
+    })
+
+    const managedSales = await getLeaderManagedSales(id)
+
+    return res.status(200).json({
+      message: '管理范围更新成功',
+      leaderId: id,
+      managedSales,
+    })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Validation failed', details: error.errors })
+    }
+    console.error('updateLeaderScope error:', error)
     return res.status(500).json({ error: 'Internal server error' })
   }
 }

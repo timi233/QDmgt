@@ -15,6 +15,8 @@ import trainingRoutes from './training.routes.js'
 import resourceRoutes from './resource.routes.js'
 import ticketRoutes from './ticket.routes.js'
 import certificationRoutes from './certification.routes.js'
+import distributorTargetRoutes from './distributorTargetRoutes.js'
+import auditLogRoutes from './auditLogRoutes.js'
 
 /**
  * Register all API routes
@@ -67,6 +69,12 @@ export function registerRoutes(app: Express) {
 
   // P1 Features - Certification routes
   app.use('/api/v1/certifications', certificationRoutes)
+
+  // Distributor target routes
+  app.use('/api/v1/distributor-targets', distributorTargetRoutes)
+
+  // Audit log routes
+  app.use('/api/v1/audit-logs', auditLogRoutes)
 }
 
 export {
@@ -86,4 +94,6 @@ export {
   resourceRoutes,
   ticketRoutes,
   certificationRoutes,
+  distributorTargetRoutes,
+  auditLogRoutes,
 }

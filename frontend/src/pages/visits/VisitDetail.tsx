@@ -37,9 +37,11 @@ interface VisitDetailResponse {
     visitDate: string
     visitType: VisitType
     purpose: string
-    participants?: string
+    ourAttendees?: string
+    clientAttendees?: string
     keyDiscussions?: string
     feedback?: string
+    competitorInfo?: string
     nextSteps?: string
     satisfactionScore?: number
     distributor: {
@@ -128,9 +130,11 @@ const VisitDetail: React.FC = () => {
       visitDate: dayjs(visit.visitDate),
       visitType: visit.visitType,
       purpose: visit.purpose,
-      participants: visit.participants,
+      ourAttendees: visit.ourAttendees,
+      clientAttendees: visit.clientAttendees,
       keyDiscussions: visit.keyDiscussions,
       feedback: visit.feedback,
+      competitorInfo: visit.competitorInfo,
       nextSteps: visit.nextSteps,
       satisfactionScore: visit.satisfactionScore,
     })
@@ -148,9 +152,11 @@ const VisitDetail: React.FC = () => {
           visitDate: values.visitDate ? dayjs(values.visitDate).toISOString() : undefined,
           visitType: values.visitType,
           purpose: values.purpose,
-          participants: values.participants,
+          ourAttendees: values.ourAttendees,
+          clientAttendees: values.clientAttendees,
           keyDiscussions: values.keyDiscussions,
           feedback: values.feedback,
+          competitorInfo: values.competitorInfo,
           nextSteps: values.nextSteps,
           satisfactionScore: values.satisfactionScore,
         },
@@ -244,19 +250,25 @@ const VisitDetail: React.FC = () => {
             <Descriptions.Item label="拜访目的" span={2}>
               {visit.purpose}
             </Descriptions.Item>
-            <Descriptions.Item label="参与方" span={2}>
-              {visit.participants || '-'}
+            <Descriptions.Item label="我方人员">
+              {visit.ourAttendees || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="对方人员">
+              {visit.clientAttendees || '-'}
             </Descriptions.Item>
             <Descriptions.Item label="关键讨论" span={2}>
               {visit.keyDiscussions || '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="客户反馈" span={2}>
+            <Descriptions.Item label="沟通结果" span={2}>
               {visit.feedback || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="竞品动态" span={2}>
+              {visit.competitorInfo || '-'}
             </Descriptions.Item>
             <Descriptions.Item label="下一步计划" span={2}>
               {visit.nextSteps || '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="满意度">
+            <Descriptions.Item label="客情健康度">
               {typeof visit.satisfactionScore === 'number' ? (
                 <Rate disabled allowHalf value={visit.satisfactionScore} />
               ) : (
@@ -309,19 +321,25 @@ const VisitDetail: React.FC = () => {
           >
             <Input />
           </Form.Item>
-          <Form.Item label="参与方" name="participants">
-            <Input />
+          <Form.Item label="我方人员" name="ourAttendees">
+            <Input placeholder="请输入我方参与人员" />
+          </Form.Item>
+          <Form.Item label="对方人员" name="clientAttendees">
+            <Input placeholder="请输入对方参与人员" />
           </Form.Item>
           <Form.Item label="关键讨论" name="keyDiscussions">
             <TextArea rows={3} />
           </Form.Item>
-          <Form.Item label="客户反馈" name="feedback">
-            <TextArea rows={3} />
+          <Form.Item label="沟通结果" name="feedback">
+            <TextArea rows={3} placeholder="记录沟通结果与客户态度" />
+          </Form.Item>
+          <Form.Item label="竞品动态" name="competitorInfo">
+            <TextArea rows={3} placeholder="记录竞品相关信息" />
           </Form.Item>
           <Form.Item label="下一步计划" name="nextSteps">
             <TextArea rows={3} />
           </Form.Item>
-          <Form.Item label="满意度评分" name="satisfactionScore">
+          <Form.Item label="客情健康度" name="satisfactionScore">
             <Rate allowHalf />
           </Form.Item>
         </Form>

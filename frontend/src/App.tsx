@@ -43,6 +43,7 @@ import CertificationDetail from './pages/certifications/CertificationDetail'
 import CertificationCreate from './pages/certifications/CertificationCreate'
 import CertificationEdit from './pages/certifications/CertificationEdit'
 import CertificationVerify from './pages/certifications/CertificationVerify'
+import AuditLogList from './pages/audit-logs/AuditLogList'
 import PrivateRoute from './utils/PrivateRoute'
 import RoleRoute from './utils/RoleRoute'
 import AppHeader from './components/Layout/AppHeader'
@@ -420,6 +421,16 @@ function AppContent() {
               <PrivateRoute>
                 <CertificationEdit />
               </PrivateRoute>
+            }
+          />
+
+          {/* Audit log routes - admin only */}
+          <Route
+            path="/audit-logs"
+            element={
+              <RoleRoute allowedRoles={['admin']}>
+                <AuditLogList />
+              </RoleRoute>
             }
           />
 

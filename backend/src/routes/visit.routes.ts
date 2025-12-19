@@ -11,6 +11,7 @@ import { authenticateToken } from '../middlewares/authMiddleware.js'
 import { requireAnyRole } from '../middlewares/roleMiddleware.js'
 import { validateBody, validateParams, validateQuery } from '../middlewares/validateMiddleware.js'
 import { requireConfirmation } from '../middlewares/confirmationMiddleware.js'
+import { dataChangeAudit } from '../middlewares/auditLogger.js'
 import {
   createVisitBodySchema,
   getVisitsQuerySchema,
@@ -25,7 +26,7 @@ const visitRoles = ['sales', 'leader']
 router.use(authenticateToken)
 router.use(requireAnyRole(visitRoles))
 
-router.post('/', validateBody(createVisitBodySchema), createVisit)
+router.post('/', validateBody(createVisitBodySchema), dataChangeAudit('CREATE', 'Visit'), createVisit)
 router.get('/', validateQuery(getVisitsQuerySchema), getVisits)
 router.get('/stats/:distributorId', validateParams(visitStatsParamSchema), getVisitStats)
 router.get('/:id', validateParams(visitIdParamSchema), getVisitById)
@@ -33,12 +34,14 @@ router.put(
   '/:id',
   validateParams(visitIdParamSchema),
   validateBody(updateVisitBodySchema),
+  dataChangeAudit('UPDATE', 'Visit'),
   updateVisit
 )
 router.delete(
   '/:id',
   validateParams(visitIdParamSchema),
   requireConfirmation,
+  dataChangeAudit('DELETE', 'Visit'),
   deleteVisit
 )
 

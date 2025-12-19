@@ -1,5 +1,6 @@
 import prisma from '../utils/prisma.js'
 import { logEvent } from '../utils/eventLogger.js'
+import { getAccessibleUserIds } from '../utils/permissionScope.js'
 
 export interface CreateTaskInput {
   distributorId?: string // Optional: task may not be linked to a distributor
@@ -33,18 +34,19 @@ export interface TaskQueryOptions {
 
 /**
  * Apply permission-based filtering for tasks
- * Sales users can only see tasks assigned to them or where they are collaborators
- * Leaders and Admins can see all tasks
+ * Admin: can see all tasks
+ * Leader: can see tasks assigned to self or managed sales
+ * Sales: can see tasks assigned to self or where they are collaborators
  */
-function applyPermissionFilter(userId: string, userRole: string) {
-  if (userRole === 'leader' || userRole === 'admin') {
-    return {} // Leaders and Admins can see all
+async function applyPermissionFilter(userId: string, userRole: string) {
+  if (userRole === 'admin') {
+    return {}
   }
-  // Sales can see tasks where they are assignee or collaborator
+  const accessibleUserIds = await getAccessibleUserIds(userId, userRole)
   return {
     OR: [
-      { assignedUserId: userId },
-      { collaborators: { some: { userId } } },
+      { assignedUserId: { in: accessibleUserIds } },
+      { collaborators: { some: { userId: { in: accessibleUserIds } } } },
     ],
   }
 }
@@ -87,10 +89,10 @@ export async function createTask(
     include: {
       distributor: true,
       assignedUser: {
-        select: { id: true, username: true, name: true, email: true },
+        select: { id: true, username: true, name: true, email: true, deletedAt: true },
       },
       creator: {
-        select: { id: true, username: true, name: true, email: true },
+        select: { id: true, username: true, name: true, email: true, deletedAt: true },
       },
     },
   })
@@ -130,7 +132,7 @@ export async function createTask(
 export async function getAllTasks(options: TaskQueryOptions) {
   const { userId, userRole, page = 1, limit = 20, filters = {} } = options
 
-  const permissionFilter = applyPermissionFilter(userId, userRole)
+  const permissionFilter = await applyPermissionFilter(userId, userRole)
 
   // Build where clause
   const where: any = {
@@ -168,10 +170,10 @@ export async function getAllTasks(options: TaskQueryOptions) {
         select: { id: true, name: true, region: true },
       },
       assignedUser: {
-        select: { id: true, username: true, name: true, email: true },
+        select: { id: true, username: true, name: true, email: true, deletedAt: true },
       },
       creator: {
-        select: { id: true, username: true, name: true },
+        select: { id: true, username: true, name: true, deletedAt: true },
       },
       collaborators: {
         include: {
@@ -213,7 +215,7 @@ export async function getTaskById(
   userId: string,
   userRole: string
 ) {
-  const permissionFilter = applyPermissionFilter(userId, userRole)
+  const permissionFilter = await applyPermissionFilter(userId, userRole)
 
   const task = await prisma.task.findFirst({
     where: {
@@ -223,18 +225,18 @@ export async function getTaskById(
     include: {
       distributor: true,
       assignedUser: {
-        select: { id: true, username: true, name: true, email: true },
+        select: { id: true, username: true, name: true, email: true, deletedAt: true },
       },
       creator: {
-        select: { id: true, username: true, name: true, email: true },
+        select: { id: true, username: true, name: true, email: true, deletedAt: true },
       },
       collaborators: {
         include: {
           user: {
-            select: { id: true, username: true, name: true, email: true },
+            select: { id: true, username: true, name: true, email: true, deletedAt: true },
           },
           addedByUser: {
-            select: { id: true, username: true, name: true },
+            select: { id: true, username: true, name: true, deletedAt: true },
           },
         },
         orderBy: { addedAt: 'desc' },
@@ -242,7 +244,7 @@ export async function getTaskById(
       comments: {
         include: {
           user: {
-            select: { id: true, username: true, name: true, email: true },
+            select: { id: true, username: true, name: true, email: true, deletedAt: true },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -250,7 +252,7 @@ export async function getTaskById(
       statusHistory: {
         include: {
           changedByUser: {
-            select: { id: true, username: true, name: true },
+            select: { id: true, username: true, name: true, deletedAt: true },
           },
         },
         orderBy: { changedAt: 'desc' },
@@ -293,10 +295,10 @@ export async function updateTask(
     include: {
       distributor: true,
       assignedUser: {
-        select: { id: true, username: true, name: true, email: true },
+        select: { id: true, username: true, name: true, email: true, deletedAt: true },
       },
       creator: {
-        select: { id: true, username: true, name: true, email: true },
+        select: { id: true, username: true, name: true, email: true, deletedAt: true },
       },
     },
   })
@@ -347,7 +349,7 @@ export async function updateTaskStatus(
     include: {
       distributor: true,
       assignedUser: {
-        select: { id: true, username: true, name: true, email: true },
+        select: { id: true, username: true, name: true, email: true, deletedAt: true },
       },
     },
   })
@@ -413,7 +415,7 @@ export async function assignTask(
     include: {
       distributor: true,
       assignedUser: {
-        select: { id: true, username: true, name: true, email: true },
+        select: { id: true, username: true, name: true, email: true, deletedAt: true },
       },
     },
   })

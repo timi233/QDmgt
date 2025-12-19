@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import {
   HomeOutlined, TeamOutlined, CalendarOutlined, HeartOutlined,
   FileTextOutlined, BookOutlined, FolderOutlined, CustomerServiceOutlined,
-  SafetyCertificateOutlined, AimOutlined, DashboardOutlined, UserOutlined
+  SafetyCertificateOutlined, AimOutlined, DashboardOutlined, UserOutlined, AuditOutlined
 } from '@ant-design/icons'
 import { getCurrentUser } from '../../services/authService'
 
@@ -39,7 +39,8 @@ export default function SideMenu({ collapsed }: SideMenuProps) {
 
   if (user?.role === 'admin') {
     menuItems.push(
-      { key: '/users', icon: <UserOutlined />, label: '用户管理' }
+      { key: '/users', icon: <UserOutlined />, label: '用户管理' },
+      { key: '/audit-logs', icon: <AuditOutlined />, label: '审计日志' }
     )
   }
 

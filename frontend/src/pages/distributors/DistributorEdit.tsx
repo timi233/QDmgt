@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Card, message, Spin, Button, Space, Popconfirm } from 'antd'
 import { ArrowLeftOutlined, DeleteOutlined } from '@ant-design/icons'
 import axios, { deleteWithConfirm } from '@/utils/axios'
-import StepForm from '../../components/DistributorForm/StepForm'
+import SinglePageEditForm from '../../components/DistributorForm/SinglePageEditForm'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api'
 
@@ -31,21 +31,9 @@ const DistributorEdit: React.FC = () => {
   }, [id])
 
   const handleFinish = async (values: any) => {
-    try {
-      await axios.put(
-        `${API_BASE_URL}/distributors/${id}`,
-        values,
-        {
-            'Content-Type': 'application/json',
-          })
-
-      message.success('经销商更新成功')
-      navigate(`/distributors/${id}`)
-    } catch (error: any) {
-      console.error('Update distributor error:', error)
-      message.error(error.response?.data?.error || '更新经销商失败')
-      throw error
-    }
+    await axios.put(`${API_BASE_URL}/distributors/${id}`, values)
+    message.success('经销商更新成功')
+    navigate(`/distributors/${id}`)
   }
 
   const handleCancel = () => {
@@ -111,11 +99,10 @@ const DistributorEdit: React.FC = () => {
           </Popconfirm>
         }
       >
-        <StepForm
+        <SinglePageEditForm
           initialData={distributor}
           onFinish={handleFinish}
           onCancel={handleCancel}
-          isEdit={true}
         />
       </Card>
     </div>

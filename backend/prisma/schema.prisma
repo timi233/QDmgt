@@ -9,6 +9,31 @@ datasource db {
   url      = "file:./dev.db"
 }
 
+// Audit log for tracking user actions
+model AuditLog {
+  id           String   @id @default(uuid())
+  userId       String?  @map("user_id")
+  userName     String?  @map("user_name")
+  action       String
+  resource     String
+  resourceId   String?  @map("resource_id")
+  method       String?
+  path         String?
+  ip           String?
+  userAgent    String?  @map("user_agent")
+  status       Int?
+  duration     Int?
+  changes      String?
+  errorMessage String?  @map("error_message")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([resource])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
 // User model - supports admin, sales and leader roles
 model User {
   id           String        @id @default(uuid())
@@ -29,6 +54,7 @@ model User {
 
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
+  deletedAt    DateTime?     @map("deleted_at")
 
   // Relations
   distributors         Distributor[]        @relation("DistributorOwner")
@@ -50,7 +76,27 @@ model User {
   assignedTickets      SupportTicket[]      @relation("TicketAssignee")
   ticketComments       TicketComment[]      @relation("TicketCommentUser")
 
+  // Leader scope relations
+  managedSales         LeaderSalesScope[]   @relation("LeaderManagedSales")
+  leaderAssignments    LeaderSalesScope[]   @relation("SalesManagers")
+
   @@map("users")
+}
+
+// LeaderSalesScope model - defines which sales users a leader can manage
+model LeaderSalesScope {
+  id        String   @id @default(uuid())
+  leaderId  String   @map("leader_id")
+  salesId   String   @map("sales_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  leader User @relation("LeaderManagedSales", fields: [leaderId], references: [id], onDelete: Cascade)
+  sales  User @relation("SalesManagers", fields: [salesId], references: [id], onDelete: Cascade)
+
+  @@unique([leaderId, salesId])
+  @@index([leaderId])
+  @@index([salesId])
+  @@map("leader_sales_scopes")
 }
 
 // Distributor model - channel partner information
@@ -95,6 +141,7 @@ model Distributor {
   workPlans WorkPlan[] @relation("DistributorWorkPlans")
   visits PartnerVisit[] @relation("DistributorVisits")
   healthScores PartnerHealthScore[] @relation("DistributorHealthScores")
+  distributorTargets DistributorTarget[] @relation("DistributorDistributorTargets")
 
   // P1 Relations
   trainingParticipants TrainingParticipant[] @relation("DistributorTrainingParticipants")
@@ -224,6 +271,7 @@ model ChannelTarget {
   quarter           String?                       // Quarter: Q1/Q2/Q3/Q4
   month             Int?                          // Month: 1-12
   targetType        String   @map("target_type")  // yearly/quarterly/monthly
+  allocationStatus  String   @default("pending") @map("allocation_status") // pending/partial/allocated
 
   // Target metrics
   newSignTarget     Float    @default(0) @map("new_sign_target")      // New sign target
@@ -246,11 +294,53 @@ model ChannelTarget {
 
   // Relations
   user              User     @relation("TargetOwner", fields: [userId], references: [id])
+  distributorTargets DistributorTarget[] @relation("ChannelTargetDistributorTargets")
 
   @@index([year, quarter, month])
   @@index([userId])
   @@index([targetType])
   @@map("channel_targets")
+}
+
+// DistributorTarget model - distributor-level target allocation
+model DistributorTarget {
+  id                   String   @id @default(uuid())
+  channelTargetId      String   @map("channel_target_id")
+  distributorId        String   @map("distributor_id")
+  year                 Int
+  quarter              String?
+  month                Int?
+
+  // Allocation info
+  cooperationLevel     String   @map("cooperation_level")  // bronze/silver/gold/platinum
+  allocationWeight     Float    @default(1) @map("allocation_weight")
+  allocationMethod     String   @default("auto") @map("allocation_method")  // auto/manual
+
+  // Target metrics (same 5 dimensions as ChannelTarget)
+  newSignTarget        Float    @default(0) @map("new_sign_target")
+  newSignCompleted     Float    @default(0) @map("new_sign_completed")
+  coreOpportunity      Float    @default(0) @map("core_opportunity")
+  coreOppCompleted     Float    @default(0) @map("core_opp_completed")
+  coreRevenue          Float    @default(0) @map("core_revenue")
+  coreRevCompleted     Float    @default(0) @map("core_rev_completed")
+  highValueOpp         Float    @default(0) @map("high_value_opp")
+  highValueOppCompleted Float   @default(0) @map("high_value_opp_completed")
+  highValueRevenue     Float    @default(0) @map("high_value_revenue")
+  highValueRevCompleted Float   @default(0) @map("high_value_rev_completed")
+
+  note                 String?
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  channelTarget        ChannelTarget @relation("ChannelTargetDistributorTargets", fields: [channelTargetId], references: [id], onDelete: Cascade)
+  distributor          Distributor   @relation("DistributorDistributorTargets", fields: [distributorId], references: [id], onDelete: Cascade)
+
+  @@unique([channelTargetId, distributorId])
+  @@index([channelTargetId])
+  @@index([distributorId])
+  @@index([year, quarter, month])
+  @@map("distributor_targets")
 }
 
 // WorkPlan model - monthly work plan
@@ -316,13 +406,16 @@ model PartnerVisit {
 
   // Visit content
   purpose         String                            // Visit purpose
-  participants    String?                           // Comma-separated participants
+  ourAttendees    String?  @map("our_attendees")    // Our team members
+  clientAttendees String?  @map("client_attendees") // Client attendees
+  participants    String?                           // Legacy: Comma-separated participants
   keyDiscussions  String?  @map("key_discussions")  // Key discussions
-  feedback        String?                           // Partner feedback
+  feedback        String?                           // Communication result
+  competitorInfo  String?  @map("competitor_info")  // Competitor information
   nextSteps       String?  @map("next_steps")       // Next steps
 
-  // Satisfaction
-  satisfactionScore Int?   @map("satisfaction_score") // 1-5 score
+  // Relationship health (renamed from satisfaction)
+  satisfactionScore Int?   @map("satisfaction_score") // 1-5 relationship health score
 
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")

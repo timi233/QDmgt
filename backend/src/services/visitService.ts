@@ -18,9 +18,12 @@ export interface CreateVisitInput {
   visitDate: Date
   visitType: 'onsite' | 'online' | 'phone' | 'meeting'
   purpose: string
+  ourAttendees?: string
+  clientAttendees?: string
   participants?: string
   keyDiscussions?: string
   feedback?: string
+  competitorInfo?: string
   nextSteps?: string
   satisfactionScore?: number
 }
@@ -29,9 +32,12 @@ export interface UpdateVisitInput {
   visitDate?: Date
   visitType?: 'onsite' | 'online' | 'phone' | 'meeting'
   purpose?: string
+  ourAttendees?: string
+  clientAttendees?: string
   participants?: string
   keyDiscussions?: string
   feedback?: string
+  competitorInfo?: string
   nextSteps?: string
   satisfactionScore?: number
 }
@@ -57,9 +63,12 @@ export async function createVisit(data: CreateVisitInput) {
       visitDate: data.visitDate,
       visitType: data.visitType,
       purpose: data.purpose,
+      ourAttendees: data.ourAttendees,
+      clientAttendees: data.clientAttendees,
       participants: data.participants,
       keyDiscussions: data.keyDiscussions,
       feedback: data.feedback,
+      competitorInfo: data.competitorInfo,
       nextSteps: data.nextSteps,
       satisfactionScore: data.satisfactionScore,
     },

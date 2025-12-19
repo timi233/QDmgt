@@ -1,21 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import {
-  Table,
-  Button,
-  Input,
-  Select,
-  Space,
-  Tag,
-  message,
-  Card,
-  Tooltip,
-} from 'antd'
-import {
-  PlusOutlined,
-  EditOutlined,
-  EyeOutlined,
-  HeartOutlined,
-} from '@ant-design/icons'
+import { Table, Button, Input, Select, Space, Tag, message, Card } from 'antd'
+import { PlusOutlined, EyeOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import axios from '@/utils/axios'
 import { formatRegion } from '@/utils/regionUtils'
@@ -315,33 +300,15 @@ const DistributorList: React.FC = () => {
       title: '操作',
       key: 'actions',
       fixed: 'right' as const,
-      width: 200,
+      width: 80,
       render: (_: any, record: any) => (
-        <Space>
-          <Button
-            type="link"
-            icon={<EyeOutlined />}
-            onClick={() => navigate(`/distributors/${record.id}`)}
-          >
-            查看
-          </Button>
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => navigate(`/distributors/${record.id}/edit`)}
-          >
-            编辑
-          </Button>
-          <Tooltip title="查看健康度详情">
-            <Button
-              type="link"
-              icon={<HeartOutlined />}
-              onClick={() => navigate(`/health-scores/${record.id}`)}
-            >
-              健康度
-            </Button>
-          </Tooltip>
-        </Space>
+        <Button
+          type="link"
+          icon={<EyeOutlined />}
+          onClick={() => navigate(`/distributors/${record.id}`)}
+        >
+          查看
+        </Button>
       ),
     },
   ]

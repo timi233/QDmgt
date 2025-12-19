@@ -1,6 +1,17 @@
 import prisma from '../utils/prisma.js'
 import { logEvent } from '../utils/eventLogger.js'
 
+export interface DistributorAllocation {
+  distributorId: string
+  weight?: number
+  newSignTarget?: number
+  coreOpportunity?: number
+  coreRevenue?: number
+  highValueOpp?: number
+  highValueRevenue?: number
+  note?: string
+}
+
 export interface CreateTargetInput {
   year: number
   quarter?: string
@@ -13,6 +24,7 @@ export interface CreateTargetInput {
   highValueRevenue?: number
   description?: string
   userId: string
+  distributorAllocations?: DistributorAllocation[]
 }
 
 export interface UpdateTargetInput {
@@ -25,42 +37,85 @@ export interface UpdateTargetInput {
 }
 
 export async function createTarget(data: CreateTargetInput) {
-  const target = await prisma.channelTarget.create({
-    data: {
-      year: data.year,
-      quarter: data.quarter,
-      month: data.month,
-      targetType: data.targetType,
-      newSignTarget: data.newSignTarget || 0,
-      coreOpportunity: data.coreOpportunity || 0,
-      coreRevenue: data.coreRevenue || 0,
-      highValueOpp: data.highValueOpp || 0,
-      highValueRevenue: data.highValueRevenue || 0,
-      description: data.description,
-      userId: data.userId,
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          username: true,
-          name: true,
-          role: true,
-        },
+  const allocations = data.distributorAllocations
+  const hasAllocations = allocations && allocations.length > 0
+
+  const target = await prisma.$transaction(async (tx) => {
+    const channelTarget = await tx.channelTarget.create({
+      data: {
+        year: data.year,
+        quarter: data.quarter,
+        month: data.month,
+        targetType: data.targetType,
+        newSignTarget: data.newSignTarget || 0,
+        coreOpportunity: data.coreOpportunity || 0,
+        coreRevenue: data.coreRevenue || 0,
+        highValueOpp: data.highValueOpp || 0,
+        highValueRevenue: data.highValueRevenue || 0,
+        description: data.description,
+        userId: data.userId,
+        allocationStatus: hasAllocations ? 'allocated' : 'pending',
       },
-    },
+    })
+
+    if (hasAllocations) {
+      const distributors = await tx.distributor.findMany({
+        where: {
+          id: { in: allocations.map((a) => a.distributorId) },
+          ownerUserId: data.userId,
+          deletedAt: null,
+        },
+        select: { id: true, cooperationLevel: true },
+      })
+      if (distributors.length !== allocations.length) {
+        throw new Error('存在无效或未授权的分销商，无法分配目标')
+      }
+      const levelMap = Object.fromEntries(distributors.map((d) => [d.id, d.cooperationLevel]))
+
+      for (const a of allocations) {
+        await tx.distributorTarget.create({
+          data: {
+            channelTargetId: channelTarget.id,
+            distributorId: a.distributorId,
+            year: channelTarget.year,
+            quarter: channelTarget.quarter,
+            month: channelTarget.month,
+            cooperationLevel: levelMap[a.distributorId] ?? 'bronze',
+            allocationWeight: a.weight ?? 1,
+            allocationMethod: 'manual',
+            newSignTarget: a.newSignTarget ?? 0,
+            coreOpportunity: a.coreOpportunity ?? 0,
+            coreRevenue: a.coreRevenue ?? 0,
+            highValueOpp: a.highValueOpp ?? 0,
+            highValueRevenue: a.highValueRevenue ?? 0,
+            note: a.note,
+          },
+        })
+      }
+    }
+
+    return tx.channelTarget.findUnique({
+      where: { id: channelTarget.id },
+      include: {
+        user: { select: { id: true, username: true, name: true, role: true } },
+        distributorTargets: hasAllocations
+          ? { include: { distributor: { select: { id: true, name: true, region: true, cooperationLevel: true } } } }
+          : false,
+      },
+    })
   })
 
   await logEvent({
     eventType: 'target_created',
     entityType: 'channel_target',
-    entityId: target.id,
+    entityId: target!.id,
     userId: data.userId,
     payload: {
-      targetType: target.targetType,
-      year: target.year,
-      quarter: target.quarter,
-      month: target.month,
+      targetType: target!.targetType,
+      year: target!.year,
+      quarter: target!.quarter,
+      month: target!.month,
+      distributorCount: allocations?.length ?? 0,
     },
   })
 
@@ -100,7 +155,7 @@ export async function getTargets(filters: {
   return targets
 }
 
-export async function getTargetById(id: string) {
+export async function getTargetById(id: string, includeDistributorTargets = false) {
   const target = await prisma.channelTarget.findUnique({
     where: { id },
     include: {
@@ -112,6 +167,14 @@ export async function getTargetById(id: string) {
           role: true,
         },
       },
+      ...(includeDistributorTargets && {
+        distributorTargets: {
+          include: {
+            distributor: { select: { id: true, name: true, region: true, cooperationLevel: true } },
+          },
+          orderBy: { allocationWeight: 'desc' as const },
+        },
+      }),
     },
   })
 

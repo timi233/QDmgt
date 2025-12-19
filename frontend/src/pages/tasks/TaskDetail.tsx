@@ -31,6 +31,7 @@ import {
 import dayjs from 'dayjs'
 import axios from '@/utils/axios'
 import { formatRegion } from '@/utils/regionUtils'
+import { formatUserName } from '@/utils/user'
 
 const { Title, Text, Paragraph } = Typography
 const { TextArea } = Input
@@ -60,6 +61,8 @@ interface Task {
   assignedUser?: {
     id: string
     username: string
+    name?: string
+    deletedAt?: string | null
   }
   collaborators?: Array<{ id: string; username: string }>
   comments?: Array<{
@@ -307,7 +310,7 @@ export function TaskDetail() {
           </Descriptions.Item>
           <Descriptions.Item label="指派给">
             <UserOutlined style={{ marginRight: 8 }} />
-            {task.assignedUser?.username || '未指派'}
+            {formatUserName(task.assignedUser)}
           </Descriptions.Item>
           <Descriptions.Item label="关联经销商">
             {task.distributor ? (
@@ -429,7 +432,7 @@ export function TaskDetail() {
             optionFilterProp="label"
             options={users.map(user => ({
               value: user.id,
-              label: `${user.username}${user.name ? ` (${user.name})` : ''} - ${user.role === 'leader' ? '主管' : '销售'}`
+              label: `${user.name || user.username} - ${user.role === 'leader' ? '主管' : '销售'}`
             }))}
           />
         </div>

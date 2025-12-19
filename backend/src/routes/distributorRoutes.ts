@@ -3,6 +3,7 @@ import { authenticateToken } from '../middlewares/authMiddleware.js'
 import { requireAnyRole } from '../middlewares/roleMiddleware.js'
 import { validateQuery, validateBody, validateParams } from '../middlewares/validateMiddleware.js'
 import { requireConfirmation } from '../middlewares/confirmationMiddleware.js'
+import { dataChangeAudit } from '../middlewares/auditLogger.js'
 import {
   create,
   getAll,
@@ -29,6 +30,7 @@ router.post(
   authenticateToken,
   requireAnyRole(distributorRoles),
   validateBody(createDistributorBodySchema),
+  dataChangeAudit('CREATE', 'Distributor'),
   create
 )
 
@@ -57,6 +59,7 @@ router.put(
   requireAnyRole(distributorRoles),
   validateParams(uuidParamSchema),
   validateBody(updateDistributorBodySchema),
+  dataChangeAudit('UPDATE', 'Distributor'),
   update
 )
 
@@ -68,6 +71,7 @@ router.delete(
   requireAnyRole(distributorRoles),
   validateParams(uuidParamSchema),
   requireConfirmation,
+  dataChangeAudit('DELETE', 'Distributor'),
   remove
 )
 
