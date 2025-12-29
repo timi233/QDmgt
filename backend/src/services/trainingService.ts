@@ -27,14 +27,49 @@ function ensureParticipantManager(
 }
 
 /**
+ * 将前端字段映射到数据库字段
+ */
+function mapFrontendToDbFields(data: any) {
+  const mapped: any = { ...data }
+
+  // instructor -> instructorName
+  if (data.instructor !== undefined) {
+    mapped.instructorName = data.instructor
+    delete mapped.instructor
+  }
+
+  // capacity -> maxParticipants
+  if (data.capacity !== undefined) {
+    mapped.maxParticipants = data.capacity
+    delete mapped.capacity
+  }
+
+  // materialsUrl -> materials
+  if (data.materialsUrl !== undefined) {
+    mapped.materials = data.materialsUrl
+    delete mapped.materialsUrl
+  }
+
+  // planned -> scheduled (状态值映射)
+  if (data.status === 'planned') {
+    mapped.status = 'scheduled'
+  }
+
+  return mapped
+}
+
+/**
  * Create a new training
  */
 export async function createTraining(data: CreateTrainingBody & { createdBy: string }) {
+  // 映射前端字段名到数据库字段名
+  const mappedData = mapFrontendToDbFields(data)
+
   const training = await prisma.training.create({
     data: {
-      ...data,
-      startDate: new Date(data.startDate),
-      endDate: data.endDate ? new Date(data.endDate) : undefined,
+      ...mappedData,
+      startDate: new Date(mappedData.startDate),
+      endDate: mappedData.endDate ? new Date(mappedData.endDate) : undefined,
     },
     include: {
       creator: {
@@ -76,7 +111,8 @@ export async function getTrainings(query: GetTrainingsQuery) {
   }
 
   if (status) {
-    where.status = status
+    // 映射 planned -> scheduled
+    where.status = status === 'planned' ? 'scheduled' : status
   }
 
   // Fix: Apply startDate filter to startDate field
@@ -191,12 +227,15 @@ export async function updateTraining(id: string, data: UpdateTrainingBody, userI
     throw new Error('Only the training creator can update it')
   }
 
+  // 映射前端字段名到数据库字段名
+  const mappedData = mapFrontendToDbFields(data)
+
   const updated = await prisma.training.update({
     where: { id },
     data: {
-      ...data,
-      startDate: data.startDate ? new Date(data.startDate) : undefined,
-      endDate: data.endDate ? new Date(data.endDate) : undefined,
+      ...mappedData,
+      startDate: mappedData.startDate ? new Date(mappedData.startDate) : undefined,
+      endDate: mappedData.endDate ? new Date(mappedData.endDate) : undefined,
     },
     include: {
       creator: {

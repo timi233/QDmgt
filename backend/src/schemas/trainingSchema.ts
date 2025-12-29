@@ -1,14 +1,14 @@
 import { z } from 'zod'
 
-// Create training schema
+// Create training schema - 匹配前端字段名和枚举值
 export const createTrainingSchema = z.object({
   body: z.object({
     title: z.string().min(1, 'Title is required').max(200, 'Title too long'),
     description: z.string().optional(),
-    trainingType: z.enum(['product', 'sales', 'technical', 'certification'], {
+    trainingType: z.enum(['product', 'sales', 'technical', 'certification', 'compliance', 'other'], {
       errorMap: () => ({ message: 'Invalid training type' }),
     }),
-    format: z.enum(['online', 'offline', 'video'], {
+    format: z.enum(['online', 'offline', 'video', 'hybrid'], {
       errorMap: () => ({ message: 'Invalid format' }),
     }),
     startDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
@@ -22,20 +22,27 @@ export const createTrainingSchema = z.object({
       .optional(),
     duration: z.number().int().min(0, 'Duration must be non-negative').default(0),
     location: z.string().optional(),
+    // 支持前端字段名 instructor，同时保留后端字段名 instructorName
+    instructor: z.string().optional(),
     instructorName: z.string().optional(),
+    // 支持前端字段名 capacity，同时保留后端字段名 maxParticipants
+    capacity: z.number().int().positive().optional(),
     maxParticipants: z.number().int().positive().optional(),
-    materials: z.string().optional(), // Comma-separated URLs or JSON
-    status: z.enum(['scheduled', 'ongoing', 'completed', 'cancelled']).default('scheduled'),
+    // 支持前端字段名 materialsUrl，同时保留后端字段名 materials
+    materialsUrl: z.string().optional(),
+    materials: z.string().optional(),
+    // 支持前端状态值 planned，同时保留后端值
+    status: z.enum(['planned', 'scheduled', 'ongoing', 'completed', 'cancelled']).default('scheduled'),
   }),
 })
 
-// Update training schema
+// Update training schema - 匹配前端字段名和枚举值
 export const updateTrainingSchema = z.object({
   body: z.object({
     title: z.string().min(1).max(200).optional(),
     description: z.string().optional(),
-    trainingType: z.enum(['product', 'sales', 'technical', 'certification']).optional(),
-    format: z.enum(['online', 'offline', 'video']).optional(),
+    trainingType: z.enum(['product', 'sales', 'technical', 'certification', 'compliance', 'other']).optional(),
+    format: z.enum(['online', 'offline', 'video', 'hybrid']).optional(),
     startDate: z
       .string()
       .refine((val) => !isNaN(Date.parse(val)), {
@@ -50,10 +57,13 @@ export const updateTrainingSchema = z.object({
       .optional(),
     duration: z.number().int().min(0).optional(),
     location: z.string().optional(),
+    instructor: z.string().optional(),
     instructorName: z.string().optional(),
+    capacity: z.number().int().positive().optional(),
     maxParticipants: z.number().int().positive().optional(),
+    materialsUrl: z.string().optional(),
     materials: z.string().optional(),
-    status: z.enum(['scheduled', 'ongoing', 'completed', 'cancelled']).optional(),
+    status: z.enum(['planned', 'scheduled', 'ongoing', 'completed', 'cancelled']).optional(),
   }),
   params: z.object({
     id: z.string().uuid('Invalid training ID'),
@@ -65,9 +75,9 @@ export const getTrainingsSchema = z.object({
   query: z.object({
     page: z.string().regex(/^\d+$/).transform(Number).default('1'),
     limit: z.string().regex(/^\d+$/).transform(Number).default('20'),
-    trainingType: z.enum(['product', 'sales', 'technical', 'certification']).optional(),
-    format: z.enum(['online', 'offline', 'video']).optional(),
-    status: z.enum(['scheduled', 'ongoing', 'completed', 'cancelled']).optional(),
+    trainingType: z.enum(['product', 'sales', 'technical', 'certification', 'compliance', 'other']).optional(),
+    format: z.enum(['online', 'offline', 'video', 'hybrid']).optional(),
+    status: z.enum(['planned', 'scheduled', 'ongoing', 'completed', 'cancelled']).optional(),
     startDate: z
       .string()
       .refine((val) => !isNaN(Date.parse(val)), {

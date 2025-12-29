@@ -32,6 +32,7 @@ export default function RoleRoute({ children, allowedRoles }: RoleRouteProps) {
 
   // Then check role
   if (!user || !allowedRoles.includes(user.role)) {
+    const isPending = !user?.role || user.role === 'pending'
     return (
       <div style={{
         display: 'flex',
@@ -43,10 +44,12 @@ export default function RoleRoute({ children, allowedRoles }: RoleRouteProps) {
         <Result
           status="403"
           title="403"
-          subTitle="Sorry, you do not have permission to access this page."
+          subTitle={isPending
+            ? '您当前账户暂未分配权限，请联系管理员分配对应权限'
+            : '您没有权限访问此页面'}
           extra={
             <Button type="primary" onClick={() => navigate('/workspace')}>
-              Back to Workspace
+              返回工作台
             </Button>
           }
         />

@@ -1,5 +1,6 @@
 import axios, { AxiosRequestConfig, AxiosError } from 'axios'
 import { message } from 'antd'
+import { getCurrentUser } from '../services/authService'
 
 const axiosInstance = axios.create({
   withCredentials: true,
@@ -20,7 +21,12 @@ axiosInstance.interceptors.response.use(
           }
           break
         case 403:
-          message.error('您没有权限执行此操作')
+          const user = getCurrentUser()
+          if (!user?.role || user.role === 'pending') {
+            message.error('您当前账户暂未分配权限，请联系管理员分配对应权限')
+          } else {
+            message.error('您没有权限执行此操作')
+          }
           break
         case 500:
           message.error('服务器错误，请稍后重试')

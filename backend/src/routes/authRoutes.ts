@@ -13,6 +13,7 @@ const authLimiter = rateLimit({
   message: '登录尝试次数过多，请15分钟后重试',
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  validate: { xForwardedForHeader: false },
 })
 
 // More relaxed rate limit for OAuth callbacks (Feishu login)
@@ -23,6 +24,7 @@ const oauthLimiter = rateLimit({
   message: '请求过于频繁，请稍后重试',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
 })
 
 /**

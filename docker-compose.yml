@@ -83,18 +83,22 @@ services:
     container_name: channel-frontend
     restart: unless-stopped
     environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://channel-backend:4000/api/v1}
+      VITE_API_BASE_URL: /api/v1
       VITE_APP_TITLE: ${VITE_APP_TITLE:-渠道管理系统}
+      VITE_PORT: 3000
+      VITE_BACKEND_PORT: 4000
     ports:
       - "4001:3000"
     volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/vite.config.ts:/app/vite.config.ts
     depends_on:
       - backend
     networks:
       - app-network
-    command: npm run dev -- --host
+    command: npm run dev -- --host --port 3000
 
   # Nginx Reverse Proxy
   nginx:

@@ -114,13 +114,18 @@ export default function Register() {
             name="password"
             rules={[
               { required: true, message: '请输入密码' },
-              { min: 8, message: '密码至少8个字符' }
+              { min: 12, message: '密码至少12个字符' },
+              { pattern: /[A-Z]/, message: '密码需包含至少一个大写字母' },
+              { pattern: /[a-z]/, message: '密码需包含至少一个小写字母' },
+              { pattern: /[0-9]/, message: '密码需包含至少一个数字' },
+              { pattern: /[!@#$%^&*(),.?":{}|<>]/, message: '密码需包含至少一个特殊字符' }
             ]}
             style={{ marginBottom: 16 }}
+            extra={<span style={{ fontSize: 12, color: '#999' }}>密码需包含大小写字母、数字和特殊字符</span>}
           >
             <Input.Password
               prefix={<LockOutlined style={{ color: '#bfbfbf' }} />}
-              placeholder="请输入密码"
+              placeholder="请输入密码（至少12位）"
               style={{ borderRadius: 6 }}
             />
           </Form.Item>

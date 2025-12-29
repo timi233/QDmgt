@@ -483,8 +483,8 @@ model Training {
   id          String   @id @default(uuid())
   title       String
   description String?
-  trainingType String  @default("product") @map("training_type") // product/sales/technical/certification
-  format      String   @default("online") // online/offline/video
+  trainingType String  @default("product") @map("training_type") // product/sales/technical/certification/compliance/other
+  format      String   @default("online") // online/offline/video/hybrid
 
   startDate   DateTime @map("start_date")
   endDate     DateTime? @map("end_date")
@@ -495,7 +495,7 @@ model Training {
   maxParticipants Int?  @map("max_participants") // Maximum number of participants
 
   materials   String?  // Comma-separated material URLs or JSON array
-  status      String   @default("scheduled") // scheduled/ongoing/completed/cancelled
+  status      String   @default("scheduled") // scheduled/ongoing/completed/cancelled (前端planned映射为scheduled)
 
   createdBy   String   @map("created_by")
   createdAt   DateTime @default(now()) @map("created_at")

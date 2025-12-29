@@ -12,6 +12,9 @@ import { registerRoutes } from './routes/index.js'
 
 const app: Express = express()
 
+// Trust the first proxy (nginx) for X-Forwarded-For headers
+app.set('trust proxy', 1)
+
 // Security middleware - Enhanced helmet configuration
 app.use(helmet({
   contentSecurityPolicy: {
