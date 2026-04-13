@@ -19,6 +19,7 @@ export default defineConfig(({ mode }) => {
     server: {
       host: true,
       port,
+      allowedHosts: ['channel.purytech.cn'],
       proxy: {
         '/api': {
           target: `http://localhost:${backendPort}`,
